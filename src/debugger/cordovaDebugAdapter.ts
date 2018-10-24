@@ -689,7 +689,7 @@ export class CordovaDebugAdapter extends ChromeDebugAdapter {
             // https://github.com/apache/cordova-ios/issues/407
             let args = ["emulate", "ios", "--buildFlag=-UseModernBuildSystem=0"];
             if (projectType.ionic || projectType.ionic2 || projectType.ionic4)
-                args = ["build", "ios", "--", "--buildFlag=-UseModernBuildSystem=0"];
+                args = ["emulate", "ios", "--", "--buildFlag=-UseModernBuildSystem=0"];
 
             if (launchArgs.runArguments && launchArgs.runArguments.length > 0) {
                 args.push(...launchArgs.runArguments);
