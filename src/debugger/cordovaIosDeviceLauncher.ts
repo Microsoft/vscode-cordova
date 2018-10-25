@@ -66,7 +66,7 @@ export class CordovaIosDeviceLauncher {
             CordovaIosDeviceLauncher.webDebuggerProxyInstance = null;
         }
 
-        let sim = CordovaIosDeviceLauncher.getWebInspectorSocket();
+        let sim = CordovaIosDeviceLauncher.getIosSimulatorWebInspectorSocket();
         console.log(sim);
         let deferred = Q.defer();
         let portRange = `null:${proxyPort},:${proxyRangeStart}-${proxyRangeEnd}`;
@@ -228,7 +228,7 @@ export class CordovaIosDeviceLauncher {
         return packagePath.split("").map((c: string) => c.charCodeAt(0).toString(16)).join("").toUpperCase();
     }
 
-    private static getWebInspectorSocket() {
+    private static getIosSimulatorWebInspectorSocket() {
 
         const WEBINSPECTOR_SOCKET_REGEXP = /\s+(\S+com\.apple\.webinspectord_sim\.socket)/;
         // lsof -aUc launchd_sim
