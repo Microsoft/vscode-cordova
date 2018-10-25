@@ -250,17 +250,12 @@ export class CordovaIosDeviceLauncher {
         });
         stdout = findSimulatorEntriesProcess.output[1].toString();
 
-        stdout.split("com.apple.CoreSimulator.SimDevice.").forEach(record => {
-            const match = WEBINSPECTOR_SOCKET_REGEXP.exec(record);
-            if (!match) {
-              return null;
-            }
-            let webInspectorSocket = match[1];
-            return webInspectorSocket;
-        });
-
-
-        return null;
+        const match = WEBINSPECTOR_SOCKET_REGEXP.exec(stdout);
+        if (!match) {
+            return null;
+        }
+        let webInspectorSocket = match[1];
+        return webInspectorSocket;
       }
 
     private static mountDeveloperImage(): Q.Promise<any> {
