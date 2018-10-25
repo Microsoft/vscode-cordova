@@ -66,6 +66,8 @@ export class CordovaIosDeviceLauncher {
             CordovaIosDeviceLauncher.webDebuggerProxyInstance = null;
         }
 
+        let sim = CordovaIosDeviceLauncher.getWebInspectorSocket();
+        console.log(sim);
         let deferred = Q.defer();
         let portRange = `null:${proxyPort},:${proxyRangeStart}-${proxyRangeEnd}`;
         CordovaIosDeviceLauncher.webDebuggerProxyInstance = child_process.spawn("ios_webkit_debug_proxy", ["-c", portRange]);
@@ -225,6 +227,41 @@ export class CordovaIosDeviceLauncher {
         // Encode the path by converting each character value to hex
         return packagePath.split("").map((c: string) => c.charCodeAt(0).toString(16)).join("").toUpperCase();
     }
+
+    private static getWebInspectorSocket() {
+
+        const WEBINSPECTOR_SOCKET_REGEXP = /\s+(\S+com\.apple\.webinspectord_sim\.socket)/;
+        // lsof -aUc launchd_sim
+        // gives a set of records like:
+        //   launchd_s 69760 isaac    3u  unix 0x57aa4fceea3937f3      0t0      /private/tmp/com.apple.CoreSimulator.SimDevice.D7082A5C-34B5-475C-994E-A21534423B9E/syslogsock
+        //   launchd_s 69760 isaac    5u  unix 0x57aa4fceea395f03      0t0      /private/tmp/com.apple.launchd.2B2u8CkN8S/Listeners
+        //   launchd_s 69760 isaac    6u  unix 0x57aa4fceea39372b      0t0      ->0x57aa4fceea3937f3
+        //   launchd_s 69760 isaac    8u  unix 0x57aa4fceea39598b      0t0      /private/tmp/com.apple.launchd.2j5k1TMh6i/com.apple.webinspectord_sim.socket
+        //   launchd_s 69760 isaac    9u  unix 0x57aa4fceea394c43      0t0      /private/tmp/com.apple.launchd.4zm9JO9KEs/com.apple.testmanagerd.unix-domain.socket
+        //   launchd_s 69760 isaac   10u  unix 0x57aa4fceea395f03      0t0      /private/tmp/com.apple.launchd.2B2u8CkN8S/Listeners
+        //   launchd_s 69760 isaac   11u  unix 0x57aa4fceea39598b      0t0      /private/tmp/com.apple.launchd.2j5k1TMh6i/com.apple.webinspectord_sim.socket
+        //   launchd_s 69760 isaac   12u  unix 0x57aa4fceea394c43      0t0      /private/tmp/com.apple.launchd.4zm9JO9KEs/com.apple.testmanagerd.unix-domain.socket
+        // these _appear_ to always be grouped together (so, the records for the particular sim are all in a group, before the next sim, etc.)
+        // so starting from the correct UDID, we ought to be able to pull the next record with `com.apple.webinspectord_sim.socket` to get the correct socket
+        let stdout: string = "";
+        let findSimulatorEntriesProcess = child_process.spawnSync("lsof", ["-aUc", "launchd_sim"], {
+            stdio: "pipe",
+            encoding: "utf-8",
+        });
+        stdout = findSimulatorEntriesProcess.output[1].toString();
+
+        stdout.split("com.apple.CoreSimulator.SimDevice.").forEach(record => {
+            const match = WEBINSPECTOR_SOCKET_REGEXP.exec(record);
+            if (!match) {
+              return null;
+            }
+            let webInspectorSocket = match[1];
+            return webInspectorSocket;
+        });
+
+
+        return null;
+      }
 
     private static mountDeveloperImage(): Q.Promise<any> {
         return CordovaIosDeviceLauncher.getDiskImage()
