@@ -94,10 +94,6 @@ export class CordovaCommandHelper {
         return CordovaCommandHelper.getSetting(fsPath, "runArguments") || [];
     }
 
-    public static getSimulatorInExternalBrowserSetting(fsPath: string): boolean {
-        return CordovaCommandHelper.getSetting(fsPath, "simulatorInExternalBrowser") === true;
-    }
-
     public static getCordovaExecutable(fsPath: string): string {
         return CordovaCommandHelper.getSetting(fsPath, "cordovaExecutable") || "";
     }
