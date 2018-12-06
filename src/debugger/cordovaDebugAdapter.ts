@@ -155,10 +155,6 @@ export class CordovaDebugAdapter extends ChromeDebugAdapter {
         return new messaging.ExtensionMessageSender(projectRoot).sendMessage(messaging.ExtensionMessage.GET_RUN_ARGUMENTS, [projectRoot]);
     }
 
-    public static getSimulatorInExternalBrowserSetting(projectRoot: string): Q.Promise<boolean> {
-        return new messaging.ExtensionMessageSender(projectRoot).sendMessage(messaging.ExtensionMessage.GET_SIMULATOR_IN_EXTERNAL_BROWSER_SETTING, [projectRoot]);
-    }
-
     public static getCordovaExecutable(projectRoot: string): Q.Promise<string> {
         return new messaging.ExtensionMessageSender(projectRoot).sendMessage(messaging.ExtensionMessage.GET_CORDOVA_EXECUTABLE, [projectRoot]);
     }
@@ -178,7 +174,7 @@ export class CordovaDebugAdapter extends ChromeDebugAdapter {
                     return result;
                 }
 
-                retry();
+                return retry();
             },
             retry);
     }
@@ -869,19 +865,7 @@ export class CordovaDebugAdapter extends ChromeDebugAdapter {
                 return this.connectSimulateDebugHost(simulateInfo);
             }).then(() => {
                 launchArgs.userDataDir = path.join(settingsHome(), CordovaDebugAdapter.CHROME_DATA_DIR);
-                return CordovaDebugAdapter.getSimulatorInExternalBrowserSetting(launchArgs.cwd)
-                    .then(simulatorInExternalBrowserSetting => {
-                        const isSetInLaunchArgs = launchArgs.simulatorInExternalBrowser;
-                        const isSetInSettings = simulatorInExternalBrowserSetting
-                            && launchArgs.simulatorInExternalBrowser !== false;
-                        if (isSetInLaunchArgs || isSetInSettings) {
-                            return this.launchChrome({
-                                ...launchArgs,
-                                url: simulateInfo.simHostUrl,
-                            });
-                        }
-                        return messageSender.sendMessage(messaging.ExtensionMessage.LAUNCH_SIM_HOST, [launchArgs.cwd, launchArgs.target, isSetInLaunchArgs]);
-                    });
+                return messageSender.sendMessage(messaging.ExtensionMessage.LAUNCH_SIM_HOST, [launchArgs.cwd, launchArgs.target]);
             }).then(() => {
                 // Launch Chrome and attach
                 launchArgs.url = simulateInfo.appHostUrl;

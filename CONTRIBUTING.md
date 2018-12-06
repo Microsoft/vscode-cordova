@@ -49,6 +49,13 @@ Your pull request should:
 * Ensure there are no linting issues ("gulp tslint")
 * To avoid line ending issues, set `autocrlf = input` and `whitespace = cr-at-eol` in your git configuration
 
+## Troubleshooting
+* VS Code complains about Q promises and mark it as problems almost everywhere
+
+This problems caused by incorrect Intellisense Typescript version choosed for the workspace.
+Change the Typescript version to workspace version in the lower right corner of the VS Code window.
+
+![Typescript Intellisense version](images/typescript-version.png)
 
 ## Code
 Much of the debug adapter is a fork of [the chrome debugging extension](https://github.com/Microsoft/vscode-chrome-debug)
