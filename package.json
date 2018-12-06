@@ -1,13 +1,13 @@
 {
   "name": "cordova-tools",
-  "displayName": "Cordova Tools",
+  "displayName": "Ionic and Cordova Tools",
   "description": "Code-hinting, debugging and integrated commands for Apache Cordova (PhoneGap). With added support for the Ionic framework.",
   "keywords": [
     "cordova",
     "ionic",
     "multi-root ready"
   ],
-  "version": "1.6.0",
+  "version": "1.5.0",
   "private": true,
   "publisher": "vsmobile",
   "icon": "images/icon.png",
@@ -389,6 +389,11 @@
                 "type": "array",
                 "description": "Run arguments to be passed to 'cordova run/build <platform>' or 'ionic serve' command(Override all other configuration params)"
               },
+              "simulatorInExternalBrowser": {
+                "type": "boolean",
+                "description": "Launch Cordova simulator in browser instead of tab in VS Code",
+                "default": false
+              },
               "cordovaExecutable": {
                 "type": "string",
                 "description": "Path to local cordova/ionic executable"
@@ -508,12 +513,18 @@
     ],
     "configuration": [
       {
-        "title": "Cordova Tools",
+        "title": "Ionic and Cordova Tools",
         "properties": {
           "cordova.runArguments": {
             "type": "array",
             "default": [],
             "description": "Run arguments to be passed to 'cordova run/build <platform>' or 'ionic serve' command",
+            "scope": "resource"
+          },
+          "cordova.simulatorInExternalBrowser": {
+            "type": "boolean",
+            "default": false,
+            "description": "Launch Cordova simulator in browser instead of tab in VS Code",
             "scope": "resource"
           },
           "cordova.cordovaExecutable": {
@@ -560,7 +571,7 @@
     "socket.io-client": "^1.4.6",
     "source-map-support": "^0.4.18",
     "temp": "^0.8.3",
-    "vscode": "^1.1.22",
+    "vscode": "^1.1.6",
     "vscode-chrome-debug-core": "^6.7.25",
     "vscode-debugadapter": "^1.32.1",
     "vscode-extension-telemetry": "0.0.5",
@@ -591,7 +602,7 @@
     "gulp-mocha": "^3.0.1",
     "gulp-preprocess": "^2.0.0",
     "gulp-sequence": "1.0.0",
-    "gulp-sourcemaps": "^1.12.1",
+    "gulp-sourcemaps": "^1.6.0",
     "gulp-tslint": "^8.1.2",
     "gulp-typescript": "^3.1.5",
     "gulp-util": "^3.0.7",

@@ -6,7 +6,7 @@ import * as vscode from "vscode";
 const channels: { [channelName: string]: OutputChannelLogger } = {};
 
 export class OutputChannelLogger {
-    public static MAIN_CHANNEL_NAME: string = "Cordova Tools";
+    public static MAIN_CHANNEL_NAME: string = "Ionic and Cordova Tools";
     private outputChannel: vscode.OutputChannel;
 
     constructor(public readonly channelName: string, lazy: boolean = false, private preserveFocus: boolean = false) {

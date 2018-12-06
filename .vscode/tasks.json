@@ -1,34 +1,30 @@
 {
-    "version": "2.0.0",
+    "version": "0.1.0",
+    "command": "gulp",
+    "isShellCommand": true,
     "tasks": [
        {
-            "label": "watch",
-            "type": "shell",
-            "command": "gulp",
+            "taskName": "watch",
             "args": [],
-            "group": "build",
-            "isBackground": true,
+            "isBuildCommand": false,
+            "isWatching": true,
             "problemMatcher": [
                 "$tsc"
             ]
         },
         {
-            "label": "build",
-            "type": "shell",
-            "command": "gulp",
+            "taskName": "build",
             "args": [],
-            "group": "build",
-            "isBackground": true,
+            "isBuildCommand": true,
+            "isWatching": false,
             "problemMatcher": [
                 "$tsc"
             ]
         },
         {
-            "label": "watch-build-test",
-            "type": "shell",
-            "command": "gulp",
-            "group": "test",
-            "isBackground": true
+            "taskName": "watch-build-test",
+            "isWatching": true,
+            "isTestCommand": true
         }
     ]
 }

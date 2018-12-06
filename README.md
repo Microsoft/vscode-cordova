@@ -1,5 +1,4 @@
-# Cordova Tools Extension
-[![Build status](https://dev.azure.com/vscode-webdiag-extensions/VS%20Code%20WebDiag%20extensions/_apis/build/status/vscode-cordova%20%5Bmaster%5D)](https://dev.azure.com/vscode-webdiag-extensions/VS%20Code%20WebDiag%20extensions/_build/latest?definitionId=13)
+# Ionic and Cordova Tools Extension
 
 Debug your code, find commands in the Command Palette, and use IntelliSense to browse objects, functions, and parameters in plugin APIs. This extension works with any Cordova-based project.
 
@@ -205,21 +204,5 @@ If you don’t wish to send usage data to Microsoft, please follow the instructi
 * Edit VSCodeTelemetrySettings.json file at `~/.vscode-cordova` and add "optIn":false.
 
 ## Known Issues
-
-* Error `Unable to find webview` while debugging on iOS Simulator
-
-This is [ios-webkit-debug-proxy issue](https://github.com/google/ios-webkit-debug-proxy/issues/250). Apple removed option to enable WebInspector inside simulator and debug proxy unable to connect to application webview.
-
-*  Error `Error: Project does not include the specified platform: android` while running `Simulate android in browser` on Ubuntu machine.
-
-This is cordova-serve issue, please, see details [here](https://github.com/Microsoft/vscode-cordova/issues/438).
-
-* Error `Error running android` while running Ionic 4 project for android platform
-
-It caused by [ionic cli bug](https://github.com/ionic-team/ionic-cli/issues/3376). As workaround, you can use Node JS v10+.
-
-* After running Ionic 4 project on native platform I get white screen in application and error `(intermediate value).fill is not a function` in Debug Console.
-
-This is [ionic bug](https://github.com/ionic-team/ionic-cli/issues/3709).
 
 * A complete [list of known issues](https://github.com/Microsoft/vscode-cordova/issues?q=is%3Aissue+label%3Aknown-issue+) can be found on [GitHub](https://github.com/Microsoft/vscode-cordova)
