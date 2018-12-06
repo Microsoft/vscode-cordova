@@ -6,40 +6,40 @@
             "type": "extensionHost",
             "request": "launch",
             "runtimeExecutable": "${execPath}",
-            "args": ["--extensionDevelopmentPath=${workspaceFolder}" ],
+            "args": ["--extensionDevelopmentPath=${workspaceRoot}" ],
             "stopOnEntry": false,
             "sourceMaps": true,
             "outFiles": [
-                "${workspaceFolder}/out/**/*.js"
+                "${workspaceRoot}/out/**/*.js"
             ],
-            "preLaunchTask": "gulp: build-src"
+            "preLaunchTask": "build-src"
         },
         {
             "name": "Launch Tests",
             "type": "extensionHost",
             "request": "launch",
             "runtimeExecutable": "${execPath}",
-            "args": ["${workspaceFolder}/test/testProject", "--extensionDevelopmentPath=${workspaceFolder}", "--extensionTestsPath=${workspaceFolder}/out/test" ],
+            "args": ["${workspaceRoot}/test/testProject", "--extensionDevelopmentPath=${workspaceRoot}", "--extensionTestsPath=${workspaceRoot}/out/test" ],
             "stopOnEntry": false,
             "sourceMaps": true,
             "outFiles": [
-                "${workspaceFolder}/out/**/*.js"
+                "${workspaceRoot}/out/**/*.js"
             ],
-            "preLaunchTask": "gulp: prepare-integration-tests"
+            "preLaunchTask": "prepare-integration-tests"
         },
         {
             "name": "Launch debugger as server",
             "type": "node",
             "request": "launch",
-            "program": "${workspaceFolder}/out/src/debugger/debugCordova.js",
+            "program": "${workspaceRoot}/out/src/debugger/debugCordova.js",
             "runtimeArgs": ["--harmony"],
             "stopOnEntry": false,
             "args": [ "--server=4712" ],
             "sourceMaps": true,
             "outFiles": [
-                "${workspaceFolder}/out/**/*.js"
+                "${workspaceRoot}/out/**/*.js"
             ],
-            "preLaunchTask": "gulp: build-src"
+            "preLaunchTask": "build-src"
         }
     ],
     "compounds": [
