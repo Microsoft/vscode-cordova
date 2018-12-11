@@ -112,7 +112,7 @@ export class CordovaDebugAdapter extends ChromeDebugAdapter {
     private static NO_LIVERELOAD_WARNING = "Warning: Ionic live reload is currently only supported for Ionic 1 projects. Continuing deployment without Ionic live reload...";
     private static SIMULATE_TARGETS: string[] = ["default", "chrome", "chromium", "edge", "firefox", "ie", "opera", "safari"];
     private static pidofNotFoundError = "/system/bin/sh: pidof: not found";
-
+    private static simulatorWebsocketPipe: child_process.ChildProcess;
 
     private outputLogger: (message: string, error?: boolean | string) => void;
     private adbPortForwardingInfo: { targetDevice: string, port: number };
@@ -757,12 +757,45 @@ export class CordovaDebugAdapter extends ChromeDebugAdapter {
             }
         };
 
+        const getIosSimulatorWebInspectorSocket = (): string => {
+            const WEBINSPECTOR_SOCKET_REGEXP = /\s+(\S+com\.apple\.webinspectord_sim\.socket)/;
+            // lsof -aUc launchd_sim
+            // gives a set of records like:
+            //   launchd_s 69760 isaac    3u  unix 0x57aa4fceea3937f3      0t0      /private/tmp/com.apple.CoreSimulator.SimDevice.D7082A5C-34B5-475C-994E-A21534423B9E/syslogsock
+            //   launchd_s 69760 isaac    5u  unix 0x57aa4fceea395f03      0t0      /private/tmp/com.apple.launchd.2B2u8CkN8S/Listeners
+            //   launchd_s 69760 isaac    6u  unix 0x57aa4fceea39372b      0t0      ->0x57aa4fceea3937f3
+            //   launchd_s 69760 isaac    8u  unix 0x57aa4fceea39598b      0t0      /private/tmp/com.apple.launchd.2j5k1TMh6i/com.apple.webinspectord_sim.socket
+            //   launchd_s 69760 isaac    9u  unix 0x57aa4fceea394c43      0t0      /private/tmp/com.apple.launchd.4zm9JO9KEs/com.apple.testmanagerd.unix-domain.socket
+            //   launchd_s 69760 isaac   10u  unix 0x57aa4fceea395f03      0t0      /private/tmp/com.apple.launchd.2B2u8CkN8S/Listeners
+            //   launchd_s 69760 isaac   11u  unix 0x57aa4fceea39598b      0t0      /private/tmp/com.apple.launchd.2j5k1TMh6i/com.apple.webinspectord_sim.socket
+            //   launchd_s 69760 isaac   12u  unix 0x57aa4fceea394c43      0t0      /private/tmp/com.apple.launchd.4zm9JO9KEs/com.apple.testmanagerd.unix-domain.socket
+            // these _appear_ to always be grouped together (so, the records for the particular sim are all in a group, before the next sim, etc.)
+            // so starting from the correct UDID, we ought to be able to pull the next record with `com.apple.webinspectord_sim.socket` to get the correct socket
+            let stdout: string = "";
+            let findSimulatorEntriesProcess = child_process.spawnSync("lsof", ["-aUc", "launchd_sim"], {
+                stdio: "pipe",
+                encoding: "utf-8",
+            });
+            stdout = findSimulatorEntriesProcess.output[1].toString();
+
+            const match = WEBINSPECTOR_SOCKET_REGEXP.exec(stdout);
+            if (!match) {
+                return null;
+            }
+            let webInspectorSocket = match[1];
+            return webInspectorSocket;
+        };
+
         const getSimulatorProxyPort = (packagePath): Q.IWhenable<{ packagePath: string; targetPort: number }> => {
             return this.promiseGet(`http://localhost:${attachArgs.port}/json`, "Unable to communicate with ios_webkit_debug_proxy").then((response: string) => {
                 try {
                     if (attachArgs.target.toLowerCase() !== "device") {
-                        let simulatorSocket = CordovaIosDeviceLauncher.getIosSimulatorWebInspectorSocket();
-                        child_process.spawn(`mkfifo myfifo & nc -lkv 27753 <myfifo | nc -Uv ${simulatorSocket} >myfifo`);
+                        let simulatorSocket = getIosSimulatorWebInspectorSocket();
+                        if (CordovaDebugAdapter.simulatorWebsocketPipe) {
+                            CordovaDebugAdapter.simulatorWebsocketPipe.kill();
+                            CordovaDebugAdapter.simulatorWebsocketPipe = null;
+                        }
+                        CordovaDebugAdapter.simulatorWebsocketPipe = child_process.spawn(`mkfifo myfifo & nc -lkv 27753 <myfifo | nc -Uv ${simulatorSocket} >myfifo`);
                     }
                     let endpointsList = JSON.parse(response);
                     let devices = endpointsList.filter((entry) =>
