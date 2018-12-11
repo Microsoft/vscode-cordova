@@ -236,7 +236,7 @@ export class CordovaIosDeviceLauncher {
         return packagePath.split("").map((c: string) => c.charCodeAt(0).toString(16)).join("").toUpperCase();
     }
 
-    private static getIosSimulatorWebInspectorSocket() {
+    public static getIosSimulatorWebInspectorSocket() {
 
         const WEBINSPECTOR_SOCKET_REGEXP = /\s+(\S+com\.apple\.webinspectord_sim\.socket)/;
         // lsof -aUc launchd_sim

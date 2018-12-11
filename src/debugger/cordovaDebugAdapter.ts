@@ -760,6 +760,10 @@ export class CordovaDebugAdapter extends ChromeDebugAdapter {
         const getSimulatorProxyPort = (packagePath): Q.IWhenable<{ packagePath: string; targetPort: number }> => {
             return this.promiseGet(`http://localhost:${attachArgs.port}/json`, "Unable to communicate with ios_webkit_debug_proxy").then((response: string) => {
                 try {
+                    if (attachArgs.target.toLowerCase() !== "device") {
+                        let simulatorSocket = CordovaIosDeviceLauncher.getIosSimulatorWebInspectorSocket();
+                        child_process.spawn(`mkfifo myfifo & nc -lkv 27753 <myfifo | nc -Uv ${simulatorSocket} >myfifo`);
+                    }
                     let endpointsList = JSON.parse(response);
                     let devices = endpointsList.filter((entry) =>
                         attachArgs.target.toLowerCase() === "device" ? entry.deviceId !== "SIMULATOR"
