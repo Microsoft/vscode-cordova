@@ -66,16 +66,6 @@ export class CordovaIosDeviceLauncher {
             CordovaIosDeviceLauncher.webDebuggerProxyInstance = null;
         }
 
-        let simulatorSocket = CordovaIosDeviceLauncher.getIosSimulatorWebInspectorSocket();
-        if (simulatorSocket) {
-            let res = child_process.spawnSync(
-            `FIFONAME=\`mktemp -u\`
-            mkfifo $FIFONAME
-            nc -lkv 27753 < $FIFONAME | nc -Uv ${simulatorSocket} > $FIFONAME &
-            rm $FIFONAME
-            fg`, {env: process.env});
-            console.log(res.output[1]);
-        }
         let deferred = Q.defer();
         let portRange = `null:${proxyPort},:${proxyRangeStart}-${proxyRangeEnd}`;
         CordovaIosDeviceLauncher.webDebuggerProxyInstance = child_process.spawn("ios_webkit_debug_proxy", ["-c", portRange]);
