@@ -793,7 +793,7 @@ export class CordovaDebugAdapter extends ChromeDebugAdapter {
                     CordovaDebugAdapter.simulatorWebsocketPipe.kill();
                     CordovaDebugAdapter.simulatorWebsocketPipe = null;
                 }
-                CordovaDebugAdapter.simulatorWebsocketPipe = child_process.spawn(`mkfifo myfifo & nc -lkv 27753 <myfifo | nc -Uv ${simulatorSocket} >myfifo`);
+                CordovaDebugAdapter.simulatorWebsocketPipe = child_process.spawn(`mkfifo myfifo; nc -lkv 27753 <myfifo | nc -Uv ${simulatorSocket} >myfifo`);
             }
             return this.promiseGet(`http://localhost:${attachArgs.port}/json`, "Unable to communicate with ios_webkit_debug_proxy").then((response: string) => {
                 try {
