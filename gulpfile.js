@@ -15,6 +15,7 @@ var typescript = require('typescript');
 var libtslint = require('tslint');
 var tslint = require('gulp-tslint');
 var del = require('del');
+var webpack = require("webpack-stream");
 
 function executeCordovaCommand(cwd, command) {
     var cordovaCmd = os.platform() === 'darwin' ? 'cordova' : 'cordova.cmd';
@@ -69,11 +70,12 @@ function fixSources() {
 
 gulp.task('compile-src', function () {
     return gulp.src(sources, { base: '.' })
-        .pipe(sourcemaps.init())
-        .pipe(ts(projectConfig))
-        .pipe(fixSources())
+        // .pipe(sourcemaps.init())
+        // .pipe(ts(projectConfig))
+        // .pipe(fixSources())
+        .pipe(webpack(require("./webpack.config.js")))
         .pipe(sourcemaps.write('.', { includeContent: false, sourceRoot: __dirname }))
-        .pipe(gulp.dest('out'));
+        .pipe(gulp.dest('out/src'));
 });
 
 gulp.task('compile-test', function () {

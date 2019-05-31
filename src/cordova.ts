@@ -62,7 +62,7 @@ function onFolderAdded(context: vscode.ExtensionContext, folder: vscode.Workspac
     let cordovaProjectRoot = CordovaProjectHelper.getCordovaProjectRoot(workspaceRoot);
 
     // Asynchronously enable telemetry
-    Telemetry.init("cordova-tools", require("./../../package.json").version, { isExtensionProcess: true, projectRoot: workspaceRoot });
+    Telemetry.init("cordova-tools", require("./../package.json").version, { isExtensionProcess: true, projectRoot: workspaceRoot });
 
     if (!cordovaProjectRoot) {
         return;

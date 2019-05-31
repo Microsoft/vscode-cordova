@@ -1,604 +1,613 @@
 {
-  "name": "cordova-tools",
-  "displayName": "Cordova Tools",
-  "description": "Code-hinting, debugging and integrated commands for Apache Cordova (PhoneGap). With added support for the Ionic framework.",
-  "keywords": [
-    "cordova",
-    "ionic",
-    "multi-root ready"
-  ],
-  "version": "1.8.2",
-  "private": true,
-  "publisher": "msjsdiag",
-  "icon": "images/icon.png",
-  "galleryBanner": {
-    "color": "#feb943",
-    "theme": "dark"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Microsoft/vscode-cordova"
-  },
-  "bugs": "https://github.com/Microsoft/vscode-cordova/issues",
-  "license": "SEE LICENSE IN LICENSE.txt",
-  "engines": {
-    "vscode": "^1.17.1"
-  },
-  "categories": [
-    "Debuggers",
-    "Snippets",
-    "Other"
-  ],
-  "activationEvents": [
-    "onLanguage:javascript",
-    "onLanguage:typescript",
-    "workspaceContains:config.xml",
-    "workspaceContains:ionic.config.json"
-  ],
-  "main": "./out/src/cordova",
-  "contributes": {
-    "commands": [
-      {
-        "command": "cordova.build",
-        "title": "Cordova: Build"
-      },
-      {
-        "command": "cordova.run",
-        "title": "Cordova: Run"
-      },
-      {
-        "command": "cordova.prepare",
-        "title": "Cordova: Prepare"
-      },
-      {
-        "command": "cordova.simulate.android",
-        "title": "Cordova: Simulate Android in browser"
-      },
-      {
-        "command": "cordova.simulate.ios",
-        "title": "Cordova: Simulate iOS in browser"
-      },
-      {
-        "command": "ionic.build",
-        "title": "Ionic: Build"
-      },
-      {
-        "command": "ionic.run",
-        "title": "Ionic: Run"
-      },
-      {
-        "command": "ionic.prepare",
-        "title": "Ionic: Prepare"
-      }
-    ],
-    "keybindings": [
-      {
-        "command": "cordova.build",
-        "key": "f6",
-        "mac": "f6",
-        "when": "!inDebugMode"
-      },
-      {
-        "command": "cordova.run",
-        "key": "ctrl+f5",
-        "mac": "cmd+f5",
-        "when": "!inDebugMode"
-      }
-    ],
-    "debuggers": [
-      {
-        "type": "cordova",
-        "label": "Cordova",
-        "enableBreakpointsFor": {
-          "languageIds": [
-            "javascript",
-            "typescript",
-            "typescriptreact"
-          ]
-        },
-        "program": "./out/src/debugger/debugCordova.js",
-        "runtime": "node",
-        "initialConfigurations": [
-          {
-            "name": "Run Android on device",
-            "type": "cordova",
-            "request": "launch",
-            "platform": "android",
-            "target": "device",
-            "port": 9222,
-            "sourceMaps": true,
-            "cwd": "${workspaceFolder}",
-            "ionicLiveReload": false
-          },
-          {
-            "name": "Run iOS on device",
-            "type": "cordova",
-            "request": "launch",
-            "platform": "ios",
-            "target": "device",
-            "port": 9220,
-            "sourceMaps": true,
-            "cwd": "${workspaceFolder}",
-            "ionicLiveReload": false
-          },
-          {
-            "name": "Attach to running android on device",
-            "type": "cordova",
-            "request": "attach",
-            "platform": "android",
-            "target": "device",
-            "port": 9222,
-            "sourceMaps": true,
-            "cwd": "${workspaceFolder}"
-          },
-          {
-            "name": "Attach to running iOS on device",
-            "type": "cordova",
-            "request": "attach",
-            "platform": "ios",
-            "target": "device",
-            "port": 9220,
-            "sourceMaps": true,
-            "cwd": "${workspaceFolder}"
-          },
-          {
-            "name": "Run Android on emulator",
-            "type": "cordova",
-            "request": "launch",
-            "platform": "android",
-            "target": "emulator",
-            "port": 9222,
-            "sourceMaps": true,
-            "cwd": "${workspaceFolder}",
-            "ionicLiveReload": false
-          },
-          {
-            "name": "Attach to running android on emulator",
-            "type": "cordova",
-            "request": "attach",
-            "platform": "android",
-            "target": "emulator",
-            "port": 9222,
-            "sourceMaps": true,
-            "cwd": "${workspaceFolder}"
-          },
-          {
-            "name": "Serve to the browser (ionic serve)",
-            "type": "cordova",
-            "request": "launch",
-            "platform": "serve",
-            "cwd": "${workspaceFolder}",
-            "devServerAddress": "localhost",
-            "sourceMaps": true,
-            "ionicLiveReload": true
-          },
-          {
-            "name": "Simulate Android in browser",
-            "type": "cordova",
-            "request": "launch",
-            "platform": "android",
-            "target": "chrome",
-            "simulatePort": 8000,
-            "livereload": true,
-            "sourceMaps": true,
-            "cwd": "${workspaceFolder}"
-          },
-          {
-            "name": "Simulate iOS in browser",
-            "type": "cordova",
-            "request": "launch",
-            "platform": "ios",
-            "target": "chrome",
-            "simulatePort": 8000,
-            "livereload": true,
-            "sourceMaps": true,
-            "cwd": "${workspaceFolder}"
-          },
-          {
-            "name": "Run Browser",
-            "type": "cordova",
-            "request": "launch",
-            "platform": "browser",
-            "target": "chrome",
-            "simulatePort": 8000,
-            "livereload": true,
-            "sourceMaps": true,
-            "cwd": "${workspaceFolder}"
-          }
-        ],
-        "configurationSnippets": [
-          {
-            "label": "Cordova: Run on Android",
-            "description": "Run and debug Cordova app on Android device/emulator",
-            "body": {
-              "name": "${2:Run android on ${1:device|emulator}}",
-              "type": "cordova",
-              "request": "launch",
-              "platform": "android",
-              "target": "${1:device|emulator}",
-              "sourceMaps": true,
-              "cwd": "^\"\\${workspaceFolder}\""
-            }
-          },
-          {
-            "label": "Cordova: Run on iOS device",
-            "description": "Run and debug Cordova app on iOS device",
-            "body": {
-              "name": "Run iOS on device",
-              "type": "cordova",
-              "request": "launch",
-              "platform": "ios",
-              "target": "$device",
-              "sourceMaps": true,
-              "cwd": "^\"\\${workspaceFolder}\""
-            }
-          },
-          {
-            "label": "Cordova: Attach to Android",
-            "description": "Attach to running Cordova app on Android device/emulator",
-            "body": {
-              "name": "${2:Attach to android on ${1:device|emulator}}",
-              "type": "cordova",
-              "request": "attach",
-              "platform": "android",
-              "target": "${1:device|emulator}",
-              "cwd": "^\"\\${workspaceFolder}\"",
-              "sourceMaps": true
-            }
-          },
-          {
-            "label": "Cordova: Attach to iOS device",
-            "description": "Attach to running Cordova app on iOS device",
-            "body": {
-              "name": "Attach to iOS on device",
-              "type": "cordova",
-              "request": "attach",
-              "platform": "ios",
-              "target": "device",
-              "cwd": "^\"\\${workspaceFolder}\"",
-              "sourceMaps": true
-            }
-          },
-          {
-            "label": "Cordova: Serve",
-            "description": "Serve to the browser (currently supported only for Ionic)",
-            "body": {
-              "name": "${1:Serve to the browser (ionic serve)}",
-              "type": "cordova",
-              "request": "launch",
-              "platform": "serve",
-              "devServerAddress": "${2:localhost}",
-              "sourceMaps": true,
-              "ionicLiveReload": true,
-              "cwd": "^\"\\${workspaceFolder}\""
-            }
-          },
-          {
-            "label": "Cordova: Simulate",
-            "description": "Simulate Cordova Android/iOS application in browser",
-            "body": {
-              "name": "${2:Simulate ${1:android|ios} in browser}",
-              "type": "cordova",
-              "request": "launch",
-              "platform": "${1:android|ios}",
-              "target": "chrome",
-              "simulatePort": 8000,
-              "livereload": true,
-              "cwd": "^\"\\${workspaceFolder}\"",
-              "sourceMaps": true
-            }
-          }
-        ],
-        "configurationAttributes": {
-          "launch": {
-            "required": [
-              "platform",
-              "cwd"
-            ],
-            "properties": {
-              "platform": {
-                "type": "string",
-                "description": "The target platform to run for (either 'ios' or 'android'; other platforms are not currently supported)"
-              },
-              "cwd": {
-                "type": "string",
-                "description": "The root of the project"
-              },
-              "target": {
-                "type": "string",
-                "description": "Either 'device', 'emulator', or identifier for a specific device / emulator. For simulation in the browser, you can use 'chrome' or 'chromium'.",
-                "default": "emulator"
-              },
-              "sourceMaps": {
-                "type": "boolean",
-                "description": "Use JavaScriptsource maps (if they exist)",
-                "default": false
-              },
-              "port": {
-                "type": "number",
-                "description": "Port to forward through to the target for debugging",
-                "default": 9222
-              },
-              "webkitRangeMin": {
-                "type": "number",
-                "description": "Start of port range to use for iOS device selection",
-                "default": 9223
-              },
-              "webkitRangeMax": {
-                "type": "number",
-                "description": "End of port range to use for iOS device selection",
-                "default": 9322
-              },
-              "attachAttempts": {
-                "type": "number",
-                "description": "Number of attempts to make when attaching to an iOS app",
-                "default": 5
-              },
-              "attachDelay": {
-                "type": "number",
-                "description": "Time in milliseconds to wait between attempts to attach to an iOS app",
-                "default": 1000
-              },
-              "attachTimeout": {
-                "type": "number",
-                "description": "Time in milliseconds to wait before the debugger is attached to the debug session",
-                "default": 10000
-              },
-              "iosDebugProxyPort": {
-                "type": "number",
-                "description": "Port to use for connecting to iOS native debugger when launching app",
-                "default": 9221
-              },
-              "appStepLaunchTimeout": {
-                "type": "number",
-                "description": "Timeout in milliseconds for individual steps when launching iOS app",
-                "default": 5000
-              },
-              "ionicLiveReload": {
-                "type": "boolean",
-                "description": "Whether or not to start an Ionic live reload session",
-                "default": false
-              },
-              "devServerPort": {
-                "type": "number",
-                "description": "The port on which Ionic's live reload server should listen"
-              },
-              "devServerAddress": {
-                "type": "string",
-                "description": "The IP address that Ionic should use for the live reload server"
-              },
-              "devServerTimeout": {
-                "type": "number",
-                "description": "Timeout in milliseconds for starting the Ionic dev server when serving to the browser or running with Ionic live reload enabled.",
-                "default": 20000
-              },
-              "simulatePort": {
-                "type": "number",
-                "description": "Port to use for connecting to the local Cordova Simulate server.",
-                "default": 8000
-              },
-              "livereload": {
-                "type": "boolean",
-                "description": "When simulating in the browser, determines whether live reload is enabled"
-              },
-              "forceprepare": {
-                "type": "boolean",
-                "description": "When simulating in the browser, determines whether a file change triggers a cordova prepare before live reloading"
-              },
-              "simulateTempDir": {
-                "type": "string",
-                "description": "The directory where temporary browser simulation files are hosted.",
-                "default": "${workspaceFolder}/.vscode/simulation"
-              },
-              "corsproxy": {
-                "type": "boolean",
-                "description": "When simulating in the browser, determines whether XHR requests are proxied to appear as though they originate from the same domain as the target.",
-                "default": true
-              },
-              "runArguments": {
-                "type": "array",
-                "description": "Run arguments to be passed to 'cordova run/build <platform>' or 'ionic serve' command(Override all other configuration params)"
-              },
-              "cordovaExecutable": {
-                "type": "string",
-                "description": "Path to local cordova/ionic executable"
-              },
-              "env": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "description": "Environment variables passed to the program.",
-                "default": {}
-              },
-              "envFile": {
-                "type": "string",
-                "description": "Absolute path to a file containing environment variable definitions.",
-                "default": "${workspaceFolder}/.env"
-              },
-              "skipFiles": {
-                "type": "array",
-                "description": "An array of file or folder names, or path globs, to skip when debugging.",
-                "default": []
-              },
-              "pathMapping": {
-                "type": "object",
-                "description": "A mapping of URLs/paths to local folders, to resolve scripts in app webroot to scripts on disk",
-                "default": {
-                  "/": "${workspaceFolder}"
-                }
-              },
-              "sourceMapPathOverrides": {
-                "type": "object",
-                "description": "A set of mappings for rewriting the locations of source files from what the sourcemap says, to their locations on disk.",
-                "default": {
-                  "webpack:///./*": "${cwd}/*",
-                  "webpack:///src/*": "${cwd}/*",
-                  "webpack:///*": "*",
-                  "webpack:///./~/*": "${cwd}/node_modules/*"
-                }
-              }
-            }
-          },
-          "attach": {
-            "required": [
-              "platform",
-              "cwd"
-            ],
-            "properties": {
-              "platform": {
-                "type": "string",
-                "description": "The platform to run on"
-              },
-              "cwd": {
-                "type": "string",
-                "description": "The root of the project"
-              },
-              "target": {
-                "type": "string",
-                "description": "either 'device', 'emulator', or identifier for a specific device / emulator",
-                "default": "emulator"
-              },
-              "sourceMaps": {
-                "type": "boolean",
-                "description": "Use JavaScriptsource maps (if they exist)",
-                "default": false
-              },
-              "port": {
-                "type": "number",
-                "description": "Port to use for remote debugging.",
-                "default": 9222
-              },
-              "webkitRangeMin": {
-                "type": "number",
-                "description": "Start of port range to use for iOS device selection",
-                "default": 9223
-              },
-              "webkitRangeMax": {
-                "type": "number",
-                "description": "End of port range to use for iOS device selection",
-                "default": 9322
-              },
-              "attachAttempts": {
-                "type": "number",
-                "description": "Number of attempts to make when attaching to an iOS app",
-                "default": 5
-              },
-              "attachDelay": {
-                "type": "number",
-                "description": "Time in milliseconds to wait between attempts to attach to an iOS app",
-                "default": 1000
-              },
-              "attachTimeout": {
-                "type": "number",
-                "description": "Time in milliseconds to wait before the debugger is attached to the debug session",
-                "default": 10000
-              },
-              "skipFiles": {
-                "type": "array",
-                "description": "An array of file or folder names, or path globs, to skip when debugging.",
-                "default": []
-              },
-              "pathMapping": {
-                "type": "object",
-                "description": "A mapping of URLs/paths to local folders, to resolve scripts in app webroot to scripts on disk",
-                "default": {
-                  "/": "${workspaceFolder}"
-                }
-              },
-              "ionicLiveReload": {
-                "type": "boolean",
-                "description": "Set this to true if you are going to attach to Ionic 4 app running with --livereload option",
-                "default": false
-              },
-              "sourceMapPathOverrides": {
-                "type": "object",
-                "description": "A set of mappings for rewriting the locations of source files from what the sourcemap says, to their locations on disk.",
-                "default": {
-                  "webpack:///./*": "${cwd}/*",
-                  "webpack:///src/*": "${cwd}/*",
-                  "webpack:///*": "*",
-                  "webpack:///./~/*": "${cwd}/node_modules/*"
-                }
-              }
-            }
-          }
-        }
-      }
-    ],
-    "configuration": [
-      {
-        "title": "Cordova Tools",
-        "properties": {
-          "cordova.runArguments": {
-            "type": "array",
-            "default": [],
-            "description": "Run arguments to be passed to 'cordova run/build <platform>' or 'ionic serve' command",
-            "scope": "resource"
-          },
-          "cordova.cordovaExecutable": {
-            "type": "string",
-            "default": "",
-            "description": "Path to local cordova/ionic executable",
-            "scope": "resource"
-          },
-          "cordova.env": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Environment variables passed to the program.",
-            "default": {},
-            "scope": "resource"
-          },
-          "cordova.envFile": {
-            "type": "string",
-            "description": "Absolute path to a file containing environment variable definitions.",
-            "scope": "resource"
-          }
-        }
-      }
-    ]
-  },
-  "scripts": {
-    "compile": "node ./node_modules/gulp/bin/gulp",
-    "test": "node ./node_modules/mocha/bin/mocha --recursive -u bdd ./out/test/debugger",
-    "postinstall": "node ./node_modules/vscode/bin/install",
-    "vscode:prepublish": "gulp"
-  },
-  "dependencies": {
-    "cordova-simulate": "^0.6.2",
-    "elementtree": "^0.1.6",
-    "plist": "^2.0.1",
-    "q": "^1.4.1",
-    "semver": "5.1.0",
-    "socket.io-client": "^2.2.0",
-    "vscode-chrome-debug-core": "^6.7.46",
-    "vscode-debugadapter": "^1.34.0",
-    "vscode-extension-telemetry": "0.0.5",
-    "winreg": "0.0.13",
-    "xcode": "^2.0.0"
-  },
-  "devDependencies": {
-    "@types/mocha": "^5.2.5",
-    "@types/node": "^10.14.4",
-    "@types/q": "^1.0.3",
-    "@types/rimraf": "^2.0.2",
-    "@types/semver": "^5.5.0",
-    "@types/socket.io-client": "^1.4.29",
-    "del": "^2.2.2",
-    "gulp": "^4.0.0",
-    "gulp-mocha": "^6.0.0",
-    "gulp-sourcemaps": "^1.12.1",
-    "gulp-tslint": "^8.1.2",
-    "gulp-typescript": "^3.1.5",
-    "gulp-util": "^3.0.7",
-    "mockery": "^1.4.0",
-    "rimraf": "^2.6.3",
-    "should": "^13.2.1",
-    "tslint": "^5.6.0",
-    "typescript": "2.4.2",
-    "vsce": "^1.3.0",
-    "vscode": "^1.1.33"
-  }
+	"name": "cordova-tools",
+	"displayName": "Cordova Tools",
+	"description": "Code-hinting, debugging and integrated commands for Apache Cordova (PhoneGap). With added support for the Ionic framework.",
+	"keywords": [
+		"cordova",
+		"ionic",
+		"multi-root ready"
+	],
+	"version": "1.8.2",
+	"private": true,
+	"publisher": "msjsdiag",
+	"icon": "images/icon.png",
+	"galleryBanner": {
+		"color": "#feb943",
+		"theme": "dark"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Microsoft/vscode-cordova"
+	},
+	"bugs": "https://github.com/Microsoft/vscode-cordova/issues",
+	"license": "SEE LICENSE IN LICENSE.txt",
+	"engines": {
+		"vscode": "^1.17.1"
+	},
+	"categories": [
+		"Debuggers",
+		"Snippets",
+		"Other"
+	],
+	"activationEvents": [
+		"onLanguage:javascript",
+		"onLanguage:typescript",
+		"workspaceContains:config.xml",
+		"workspaceContains:ionic.config.json"
+	],
+	"main": "./out/src/cordova",
+	"contributes": {
+		"commands": [
+			{
+				"command": "cordova.build",
+				"title": "Cordova: Build"
+			},
+			{
+				"command": "cordova.run",
+				"title": "Cordova: Run"
+			},
+			{
+				"command": "cordova.prepare",
+				"title": "Cordova: Prepare"
+			},
+			{
+				"command": "cordova.simulate.android",
+				"title": "Cordova: Simulate Android in browser"
+			},
+			{
+				"command": "cordova.simulate.ios",
+				"title": "Cordova: Simulate iOS in browser"
+			},
+			{
+				"command": "ionic.build",
+				"title": "Ionic: Build"
+			},
+			{
+				"command": "ionic.run",
+				"title": "Ionic: Run"
+			},
+			{
+				"command": "ionic.prepare",
+				"title": "Ionic: Prepare"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "cordova.build",
+				"key": "f6",
+				"mac": "f6",
+				"when": "!inDebugMode"
+			},
+			{
+				"command": "cordova.run",
+				"key": "ctrl+f5",
+				"mac": "cmd+f5",
+				"when": "!inDebugMode"
+			}
+		],
+		"debuggers": [
+			{
+				"type": "cordova",
+				"label": "Cordova",
+				"enableBreakpointsFor": {
+					"languageIds": [
+						"javascript",
+						"typescript",
+						"typescriptreact"
+					]
+				},
+				"program": "./out/src/debugger/debugCordova.js",
+				"runtime": "node",
+				"initialConfigurations": [
+					{
+						"name": "Run Android on device",
+						"type": "cordova",
+						"request": "launch",
+						"platform": "android",
+						"target": "device",
+						"port": 9222,
+						"sourceMaps": true,
+						"cwd": "${workspaceFolder}",
+						"ionicLiveReload": false
+					},
+					{
+						"name": "Run iOS on device",
+						"type": "cordova",
+						"request": "launch",
+						"platform": "ios",
+						"target": "device",
+						"port": 9220,
+						"sourceMaps": true,
+						"cwd": "${workspaceFolder}",
+						"ionicLiveReload": false
+					},
+					{
+						"name": "Attach to running android on device",
+						"type": "cordova",
+						"request": "attach",
+						"platform": "android",
+						"target": "device",
+						"port": 9222,
+						"sourceMaps": true,
+						"cwd": "${workspaceFolder}"
+					},
+					{
+						"name": "Attach to running iOS on device",
+						"type": "cordova",
+						"request": "attach",
+						"platform": "ios",
+						"target": "device",
+						"port": 9220,
+						"sourceMaps": true,
+						"cwd": "${workspaceFolder}"
+					},
+					{
+						"name": "Run Android on emulator",
+						"type": "cordova",
+						"request": "launch",
+						"platform": "android",
+						"target": "emulator",
+						"port": 9222,
+						"sourceMaps": true,
+						"cwd": "${workspaceFolder}",
+						"ionicLiveReload": false
+					},
+					{
+						"name": "Attach to running android on emulator",
+						"type": "cordova",
+						"request": "attach",
+						"platform": "android",
+						"target": "emulator",
+						"port": 9222,
+						"sourceMaps": true,
+						"cwd": "${workspaceFolder}"
+					},
+					{
+						"name": "Serve to the browser (ionic serve)",
+						"type": "cordova",
+						"request": "launch",
+						"platform": "serve",
+						"cwd": "${workspaceFolder}",
+						"devServerAddress": "localhost",
+						"sourceMaps": true,
+						"ionicLiveReload": true
+					},
+					{
+						"name": "Simulate Android in browser",
+						"type": "cordova",
+						"request": "launch",
+						"platform": "android",
+						"target": "chrome",
+						"simulatePort": 8000,
+						"livereload": true,
+						"sourceMaps": true,
+						"cwd": "${workspaceFolder}"
+					},
+					{
+						"name": "Simulate iOS in browser",
+						"type": "cordova",
+						"request": "launch",
+						"platform": "ios",
+						"target": "chrome",
+						"simulatePort": 8000,
+						"livereload": true,
+						"sourceMaps": true,
+						"cwd": "${workspaceFolder}"
+					},
+					{
+						"name": "Run Browser",
+						"type": "cordova",
+						"request": "launch",
+						"platform": "browser",
+						"target": "chrome",
+						"simulatePort": 8000,
+						"livereload": true,
+						"sourceMaps": true,
+						"cwd": "${workspaceFolder}"
+					}
+				],
+				"configurationSnippets": [
+					{
+						"label": "Cordova: Run on Android",
+						"description": "Run and debug Cordova app on Android device/emulator",
+						"body": {
+							"name": "${2:Run android on ${1:device|emulator}}",
+							"type": "cordova",
+							"request": "launch",
+							"platform": "android",
+							"target": "${1:device|emulator}",
+							"sourceMaps": true,
+							"cwd": "^\"\\${workspaceFolder}\""
+						}
+					},
+					{
+						"label": "Cordova: Run on iOS device",
+						"description": "Run and debug Cordova app on iOS device",
+						"body": {
+							"name": "Run iOS on device",
+							"type": "cordova",
+							"request": "launch",
+							"platform": "ios",
+							"target": "$device",
+							"sourceMaps": true,
+							"cwd": "^\"\\${workspaceFolder}\""
+						}
+					},
+					{
+						"label": "Cordova: Attach to Android",
+						"description": "Attach to running Cordova app on Android device/emulator",
+						"body": {
+							"name": "${2:Attach to android on ${1:device|emulator}}",
+							"type": "cordova",
+							"request": "attach",
+							"platform": "android",
+							"target": "${1:device|emulator}",
+							"cwd": "^\"\\${workspaceFolder}\"",
+							"sourceMaps": true
+						}
+					},
+					{
+						"label": "Cordova: Attach to iOS device",
+						"description": "Attach to running Cordova app on iOS device",
+						"body": {
+							"name": "Attach to iOS on device",
+							"type": "cordova",
+							"request": "attach",
+							"platform": "ios",
+							"target": "device",
+							"cwd": "^\"\\${workspaceFolder}\"",
+							"sourceMaps": true
+						}
+					},
+					{
+						"label": "Cordova: Serve",
+						"description": "Serve to the browser (currently supported only for Ionic)",
+						"body": {
+							"name": "${1:Serve to the browser (ionic serve)}",
+							"type": "cordova",
+							"request": "launch",
+							"platform": "serve",
+							"devServerAddress": "${2:localhost}",
+							"sourceMaps": true,
+							"ionicLiveReload": true,
+							"cwd": "^\"\\${workspaceFolder}\""
+						}
+					},
+					{
+						"label": "Cordova: Simulate",
+						"description": "Simulate Cordova Android/iOS application in browser",
+						"body": {
+							"name": "${2:Simulate ${1:android|ios} in browser}",
+							"type": "cordova",
+							"request": "launch",
+							"platform": "${1:android|ios}",
+							"target": "chrome",
+							"simulatePort": 8000,
+							"livereload": true,
+							"cwd": "^\"\\${workspaceFolder}\"",
+							"sourceMaps": true
+						}
+					}
+				],
+				"configurationAttributes": {
+					"launch": {
+						"required": [
+							"platform",
+							"cwd"
+						],
+						"properties": {
+							"platform": {
+								"type": "string",
+								"description": "The target platform to run for (either 'ios' or 'android'; other platforms are not currently supported)"
+							},
+							"cwd": {
+								"type": "string",
+								"description": "The root of the project"
+							},
+							"target": {
+								"type": "string",
+								"description": "Either 'device', 'emulator', or identifier for a specific device / emulator. For simulation in the browser, you can use 'chrome' or 'chromium'.",
+								"default": "emulator"
+							},
+							"sourceMaps": {
+								"type": "boolean",
+								"description": "Use JavaScriptsource maps (if they exist)",
+								"default": false
+							},
+							"port": {
+								"type": "number",
+								"description": "Port to forward through to the target for debugging",
+								"default": 9222
+							},
+							"webkitRangeMin": {
+								"type": "number",
+								"description": "Start of port range to use for iOS device selection",
+								"default": 9223
+							},
+							"webkitRangeMax": {
+								"type": "number",
+								"description": "End of port range to use for iOS device selection",
+								"default": 9322
+							},
+							"attachAttempts": {
+								"type": "number",
+								"description": "Number of attempts to make when attaching to an iOS app",
+								"default": 5
+							},
+							"attachDelay": {
+								"type": "number",
+								"description": "Time in milliseconds to wait between attempts to attach to an iOS app",
+								"default": 1000
+							},
+							"attachTimeout": {
+								"type": "number",
+								"description": "Time in milliseconds to wait before the debugger is attached to the debug session",
+								"default": 10000
+							},
+							"iosDebugProxyPort": {
+								"type": "number",
+								"description": "Port to use for connecting to iOS native debugger when launching app",
+								"default": 9221
+							},
+							"appStepLaunchTimeout": {
+								"type": "number",
+								"description": "Timeout in milliseconds for individual steps when launching iOS app",
+								"default": 5000
+							},
+							"ionicLiveReload": {
+								"type": "boolean",
+								"description": "Whether or not to start an Ionic live reload session",
+								"default": false
+							},
+							"devServerPort": {
+								"type": "number",
+								"description": "The port on which Ionic's live reload server should listen"
+							},
+							"devServerAddress": {
+								"type": "string",
+								"description": "The IP address that Ionic should use for the live reload server"
+							},
+							"devServerTimeout": {
+								"type": "number",
+								"description": "Timeout in milliseconds for starting the Ionic dev server when serving to the browser or running with Ionic live reload enabled.",
+								"default": 20000
+							},
+							"simulatePort": {
+								"type": "number",
+								"description": "Port to use for connecting to the local Cordova Simulate server.",
+								"default": 8000
+							},
+							"livereload": {
+								"type": "boolean",
+								"description": "When simulating in the browser, determines whether live reload is enabled"
+							},
+							"forceprepare": {
+								"type": "boolean",
+								"description": "When simulating in the browser, determines whether a file change triggers a cordova prepare before live reloading"
+							},
+							"simulateTempDir": {
+								"type": "string",
+								"description": "The directory where temporary browser simulation files are hosted.",
+								"default": "${workspaceFolder}/.vscode/simulation"
+							},
+							"corsproxy": {
+								"type": "boolean",
+								"description": "When simulating in the browser, determines whether XHR requests are proxied to appear as though they originate from the same domain as the target.",
+								"default": true
+							},
+							"runArguments": {
+								"type": "array",
+								"description": "Run arguments to be passed to 'cordova run/build <platform>' or 'ionic serve' command(Override all other configuration params)"
+							},
+							"cordovaExecutable": {
+								"type": "string",
+								"description": "Path to local cordova/ionic executable"
+							},
+							"env": {
+								"type": "object",
+								"additionalProperties": {
+									"type": "string"
+								},
+								"description": "Environment variables passed to the program.",
+								"default": {}
+							},
+							"envFile": {
+								"type": "string",
+								"description": "Absolute path to a file containing environment variable definitions.",
+								"default": "${workspaceFolder}/.env"
+							},
+							"skipFiles": {
+								"type": "array",
+								"description": "An array of file or folder names, or path globs, to skip when debugging.",
+								"default": []
+							},
+							"pathMapping": {
+								"type": "object",
+								"description": "A mapping of URLs/paths to local folders, to resolve scripts in app webroot to scripts on disk",
+								"default": {
+									"/": "${workspaceFolder}"
+								}
+							},
+							"sourceMapPathOverrides": {
+								"type": "object",
+								"description": "A set of mappings for rewriting the locations of source files from what the sourcemap says, to their locations on disk.",
+								"default": {
+									"webpack:///./*": "${cwd}/*",
+									"webpack:///src/*": "${cwd}/*",
+									"webpack:///*": "*",
+									"webpack:///./~/*": "${cwd}/node_modules/*"
+								}
+							}
+						}
+					},
+					"attach": {
+						"required": [
+							"platform",
+							"cwd"
+						],
+						"properties": {
+							"platform": {
+								"type": "string",
+								"description": "The platform to run on"
+							},
+							"cwd": {
+								"type": "string",
+								"description": "The root of the project"
+							},
+							"target": {
+								"type": "string",
+								"description": "either 'device', 'emulator', or identifier for a specific device / emulator",
+								"default": "emulator"
+							},
+							"sourceMaps": {
+								"type": "boolean",
+								"description": "Use JavaScriptsource maps (if they exist)",
+								"default": false
+							},
+							"port": {
+								"type": "number",
+								"description": "Port to use for remote debugging.",
+								"default": 9222
+							},
+							"webkitRangeMin": {
+								"type": "number",
+								"description": "Start of port range to use for iOS device selection",
+								"default": 9223
+							},
+							"webkitRangeMax": {
+								"type": "number",
+								"description": "End of port range to use for iOS device selection",
+								"default": 9322
+							},
+							"attachAttempts": {
+								"type": "number",
+								"description": "Number of attempts to make when attaching to an iOS app",
+								"default": 5
+							},
+							"attachDelay": {
+								"type": "number",
+								"description": "Time in milliseconds to wait between attempts to attach to an iOS app",
+								"default": 1000
+							},
+							"attachTimeout": {
+								"type": "number",
+								"description": "Time in milliseconds to wait before the debugger is attached to the debug session",
+								"default": 10000
+							},
+							"skipFiles": {
+								"type": "array",
+								"description": "An array of file or folder names, or path globs, to skip when debugging.",
+								"default": []
+							},
+							"pathMapping": {
+								"type": "object",
+								"description": "A mapping of URLs/paths to local folders, to resolve scripts in app webroot to scripts on disk",
+								"default": {
+									"/": "${workspaceFolder}"
+								}
+							},
+							"ionicLiveReload": {
+								"type": "boolean",
+								"description": "Set this to true if you are going to attach to Ionic 4 app running with --livereload option",
+								"default": false
+							},
+							"sourceMapPathOverrides": {
+								"type": "object",
+								"description": "A set of mappings for rewriting the locations of source files from what the sourcemap says, to their locations on disk.",
+								"default": {
+									"webpack:///./*": "${cwd}/*",
+									"webpack:///src/*": "${cwd}/*",
+									"webpack:///*": "*",
+									"webpack:///./~/*": "${cwd}/node_modules/*"
+								}
+							}
+						}
+					}
+				}
+			}
+		],
+		"configuration": [
+			{
+				"title": "Cordova Tools",
+				"properties": {
+					"cordova.runArguments": {
+						"type": "array",
+						"default": [],
+						"description": "Run arguments to be passed to 'cordova run/build <platform>' or 'ionic serve' command",
+						"scope": "resource"
+					},
+					"cordova.cordovaExecutable": {
+						"type": "string",
+						"default": "",
+						"description": "Path to local cordova/ionic executable",
+						"scope": "resource"
+					},
+					"cordova.env": {
+						"type": "object",
+						"additionalProperties": {
+							"type": "string"
+						},
+						"description": "Environment variables passed to the program.",
+						"default": {},
+						"scope": "resource"
+					},
+					"cordova.envFile": {
+						"type": "string",
+						"description": "Absolute path to a file containing environment variable definitions.",
+						"scope": "resource"
+					}
+				}
+			}
+		]
+	},
+	"scripts": {
+		"compile": "node ./node_modules/gulp/bin/gulp",
+		"test": "node ./node_modules/mocha/bin/mocha --recursive -u bdd ./out/test/debugger",
+		"postinstall": "node ./node_modules/vscode/bin/install",
+		"vscode:prepublish": "webpack --mode production"
+	},
+	"dependencies": {
+		"cordova-simulate": "^0.6.2",
+		"elementtree": "^0.1.6",
+		"plist": "^2.0.1",
+		"q": "^1.4.1",
+		"semver": "5.1.0",
+		"socket.io-client": "^2.2.0",
+		"vscode-chrome-debug-core": "^6.7.46",
+		"vscode-debugadapter": "^1.34.0",
+		"vscode-extension-telemetry": "0.0.5",
+		"webpack-stream": "^5.2.1",
+		"winreg": "0.0.13",
+		"xcode": "^2.0.0"
+	},
+	"devDependencies": {
+		"@types/mocha": "^5.2.5",
+		"@types/node": "^10.14.4",
+		"@types/q": "^1.0.3",
+		"@types/rimraf": "^2.0.2",
+		"@types/semver": "^5.5.0",
+		"@types/socket.io-client": "^1.4.29",
+		"del": "^2.2.2",
+		"gulp": "^4.0.0",
+		"gulp-mocha": "^6.0.0",
+		"gulp-sourcemaps": "^1.12.1",
+		"gulp-tslint": "^8.1.2",
+		"gulp-typescript": "^3.1.5",
+		"gulp-util": "^3.0.7",
+		"mockery": "^1.4.0",
+		"rimraf": "^2.6.3",
+		"should": "^13.2.1",
+		"ts-loader": "^4.4.2",
+		"tslint": "^5.6.0",
+		"typescript": "2.4.2",
+		"vsce": "^1.3.0",
+		"vscode": "^1.1.33",
+		"webpack": "^4.32.2",
+		"webpack-cli": "^3.3.2"
+	},
+	"__metadata": {
+		"id": "1109f6fe-74e4-4f43-9b37-9e50ced7f70c",
+		"publisherDisplayName": "Microsoft",
+		"publisherId": "ecde0778-6fe5-4f72-93a7-196989f19e58"
+	}
 }
