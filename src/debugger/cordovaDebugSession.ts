@@ -27,8 +27,6 @@ import { CordovaIosDeviceLauncher } from "./cordovaIosDeviceLauncher";
 import { PluginSimulator } from "../extension/simulate";
 import { CordovaCommandHelper } from "../utils/cordovaCommandHelper";
 
-
-
 // enum DebugSessionStatus {
 //     FirstConnection,
 //     FirstConnectionPending,
@@ -279,92 +277,6 @@ export class CordovaDebugSession extends LoggingDebugSession {
         //     target: launchArgs.target,
         // };
 
-        return new Promise<void>((resolve, reject) => this.initializeTelemetry(launchArgs.cwd)
-            .then(() => TelemetryHelper.generate("launch", (generator) => {
-                launchArgs.port = launchArgs.port || 9222;
-                if (!launchArgs.target) {
-                    if (launchArgs.platform === "browser") {
-                        launchArgs.target = "chrome";
-                    } else {
-                        launchArgs.target = "emulator";
-                    }
-                    this.outputLogger(`Parameter target is not set - ${launchArgs.target} will be used`);
-                }
-                generator.add("target", CordovaDebugSession.getTargetType(launchArgs.target), false);
-                launchArgs.cwd = CordovaProjectHelper.getCordovaProjectRoot(launchArgs.cwd);
-                if (launchArgs.cwd === null) {
-                    throw new Error("Current working directory doesn't contain a Cordova project. Please open a Cordova project as a workspace root and try again.");
-                }
-                launchArgs.timeout = launchArgs.attachTimeout;
-
-                let platform = launchArgs.platform && launchArgs.platform.toLowerCase();
-
-                TelemetryHelper.sendPluginsList(launchArgs.cwd, CordovaProjectHelper.getInstalledPlugins(launchArgs.cwd));
-
-                return Q.all([
-                    TelemetryHelper.determineProjectTypes(launchArgs.cwd),
-                    CordovaDebugSession.getRunArguments(launchArgs.cwd),
-                    CordovaDebugSession.getCordovaExecutable(launchArgs.cwd),
-                ]).then(([projectType, runArguments, cordovaExecutable]) => {
-                    launchArgs.cordovaExecutable = launchArgs.cordovaExecutable || cordovaExecutable;
-                    launchArgs.env = CordovaProjectHelper.getEnvArgument(launchArgs);
-                    generator.add("projectType", projectType, false);
-                    this.outputLogger(`Launching for ${platform} (This may take a while)...`);
-
-                    switch (platform) {
-                        case "android":
-                            generator.add("platform", platform, false);
-                            if (this.isSimulateTarget(launchArgs.target)) {
-                                return this.launchSimulate(launchArgs, projectType, generator);
-                            } else {
-                                return this.launchAndroid(launchArgs, projectType, runArguments);
-                            }
-                        case "ios":
-                            generator.add("platform", platform, false);
-                            if (this.isSimulateTarget(launchArgs.target)) {
-                                return this.launchSimulate(launchArgs, projectType, generator);
-                            } else {
-                                return this.launchIos(launchArgs, projectType, runArguments);
-                            }
-                        case "windows":
-                            generator.add("platform", platform, false);
-                            if (this.isSimulateTarget(launchArgs.target)) {
-                                return this.launchSimulate(launchArgs, projectType, generator);
-                            } else {
-                                throw new Error(`Debugging ${platform} platform is not supported.`);
-                            }
-                        case "serve":
-                            generator.add("platform", platform, false);
-                            return this.launchServe(launchArgs, projectType, runArguments);
-                        // https://github.com/apache/cordova-serve/blob/4ad258947c0e347ad5c0f20d3b48e3125eb24111/src/util.js#L27-L37
-                        case "amazon_fireos":
-                        case "blackberry10":
-                        case "firefoxos":
-                        case "ubuntu":
-                        case "wp8":
-                        case "browser":
-                            generator.add("platform", platform, false);
-                            return this.launchSimulate(launchArgs, projectType, generator);
-                        default:
-                            generator.add("unknownPlatform", platform, true);
-                            throw new Error(`Unknown Platform: ${platform}`);
-                    }
-                }).catch((err) => {
-                    this.outputLogger(err.message || err, true);
-                    return this.cleanUp().then(() => {
-                        throw err;
-                    });
-                }).then(() => {
-                    // For the browser platforms, we call super.launch(), which already attaches. For other platforms, attach here
-                    if (platform !== "serve" && platform !== "browser" && !this.isSimulateTarget(launchArgs.target)) {
-                        return this.session.customRequest("attach", launchArgs);
-                    }
-                });
-            }).done(resolve, reject))
-            .catch(err => {
-                this.outputLogger(err.message || err, true);
-                reject(err);
-            }));
     }
 
     protected attachRequest(response: DebugProtocol.AttachResponse, attachArgs: ICordovaAttachRequestArgs, request?: DebugProtocol.Request): Promise<void>  {
@@ -459,7 +371,8 @@ export class CordovaDebugSession extends LoggingDebugSession {
                 // debug sessions from other ones. So we can save and process only the extension's debug sessions
                 // in vscode.debug API methods "onDidStartDebugSession" and "onDidTerminateDebugSession".
                 cordovaDebugSessionId: this.session.id,
-                sourceMapPathOverrides: this.getSourceMapPathOverrides(vscode.workspace.workspaceFolders[0].uri.fsPath, DefaultWebSourceMapPathOverrides),
+                // sourceMapPathOverrides: this.getSourceMapPathOverrides(vscode.workspace.workspaceFolders[0].uri.fsPath, DefaultWebSourceMapPathOverrides),
+                // webRoot: path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, "www"),
             };
 
             vscode.debug.startDebugging(
@@ -1240,7 +1153,6 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
             }
         }
 
-
         // Deploy app to browser
         return Q(void 0).then(() => {
             return this.startIonicDevServer(launchArgs, args);
@@ -1250,6 +1162,7 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
             launchArgs.userDataDir = path.join(settingsHome(), CordovaDebugSession.CHROME_DATA_DIR);
 
             // Launch Chrome and attach
+            this.outputLogger("Attaching to app");
             return this.launchChrome(launchArgs);
         });
     }
@@ -1258,56 +1171,7 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
         return e.message || e.error || e.data || e;
     }
 
-    private launchAndroid(launchArgs: ICordovaLaunchRequestArgs, projectType: IProjectType, runArguments: string[]): Q.Promise<void> {
-        let workingDirectory = launchArgs.cwd;
 
-        // Prepare the command line args
-        let isDevice = launchArgs.target.toLowerCase() === "device";
-        let args = ["run", "android"];
-
-        if (launchArgs.runArguments && launchArgs.runArguments.length > 0) {
-            args.push(...launchArgs.runArguments);
-        } else if (runArguments && runArguments.length) {
-            args.push(...runArguments);
-        } else {
-            args.push(isDevice ? "--device" : "--emulator", "--verbose");
-            if (["device", "emulator"].indexOf(launchArgs.target.toLowerCase()) === -1) {
-                args.push(`--target=${launchArgs.target}`);
-            }
-
-            // Verify if we are using Ionic livereload
-            if (launchArgs.ionicLiveReload) {
-                if (CordovaProjectHelper.isIonicAngularProjectByProjectType(projectType)) {
-                    // Livereload is enabled, let Ionic do the launch
-                    args.push("--livereload");
-                } else {
-                    this.outputLogger(CordovaDebugSession.NO_LIVERELOAD_WARNING);
-                }
-            }
-        }
-
-        if (args.indexOf("--livereload") > -1) {
-            return this.startIonicDevServer(launchArgs, args).then(() => void 0);
-        }
-        const command = launchArgs.cordovaExecutable || CordovaProjectHelper.getCliCommand(workingDirectory);
-        let cordovaResult = cordovaRunCommand(command, args, launchArgs.env, workingDirectory).then((output) => {
-            let runOutput = output[0];
-            let stderr = output[1];
-
-            // Ionic ends process with zero code, so we need to look for
-            // strings with error content to detect failed process
-            let errorMatch = /(ERROR.*)/.test(runOutput) || /error:.*/i.test(stderr);
-            if (errorMatch) {
-                throw new Error(`Error running android`);
-            }
-
-            this.outputLogger("App successfully launched");
-        }, undefined, (progress) => {
-            this.outputLogger(progress[0], progress[1]);
-        });
-
-        return cordovaResult;
-    }
 
     private attachAndroid(attachArgs: ICordovaAttachRequestArgs): Q.Promise<IAttachRequestArgs> {
         let errorLogger = (message: string) => this.outputLogger(message, true);
