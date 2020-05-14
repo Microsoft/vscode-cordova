@@ -45,7 +45,11 @@ export class OutputChannelLogger {
     }
 
     public log(message: string): void {
-        this.channel.appendLine(OutputChannelLogger.purify(message));
+        this.channel.appendLine(OutputChannelLogger.purify(`[Info] ${message}`));
+    }
+
+    public error(message: string): void {
+        this.channel.appendLine(OutputChannelLogger.purify(`[Error] ${message}`));
     }
 
     public append(message: string): void {
