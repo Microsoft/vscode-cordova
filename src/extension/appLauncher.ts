@@ -24,6 +24,7 @@ import { SimulationInfo } from "../common/simulationInfo";
 import { PluginSimulator } from "./simulate";
 import { CordovaIosDeviceLauncher } from "../debugger/cordovaIosDeviceLauncher";
 import { ICordovaLaunchRequestArgs, ICordovaAttachRequestArgs, IAttachRequestArgs } from "../debugger/cordovaRequestInterfaces";
+import { ProjectsStorage } from "./projectStorage";
 
 enum TargetType {
     Emulator = "emulator",
@@ -32,8 +33,6 @@ enum TargetType {
 }
 
 export class AppLauncher {
-
-
     private static pidofNotFoundError = "/system/bin/sh: pidof: not found";
     private static NO_LIVERELOAD_WARNING = "Warning: Ionic live reload is currently only supported for Ionic 1 projects. Continuing deployment without Ionic live reload...";
     private static SIMULATE_TARGETS: string[] = ["default", "chrome", "chromium", "edge", "firefox", "ie", "opera", "safari"];
@@ -63,12 +62,23 @@ export class AppLauncher {
         this.cdpProxyPort = generateRandomPortNumber();
         this.cdpProxyHostAddress = "127.0.0.1"; // localhost
         this.workspaceFolder = workspaceFolder;
+        this.pluginSimulator = new PluginSimulator();
 
         this.cordovaCdpProxy = new CordovaCDPProxy(
             this.cdpProxyHostAddress,
             this.cdpProxyPort
         );
         this.telemetryInitialized = false;
+        this.attachedDeferred = Q.defer<void>();
+    }
+
+    public static getAppLauncherByProjectRootPath(projectRootPath: string): AppLauncher {
+        const appLauncher = ProjectsStorage.projectsCache[projectRootPath.toLowerCase()];
+        if (!appLauncher) {
+            throw new Error(`Could not find AppLauncher by the project root path ${projectRootPath}`);
+        }
+
+        return appLauncher;
     }
 
     /**
@@ -309,15 +319,21 @@ export class AppLauncher {
 
             this.logger.log("App successfully launched");
         }, undefined, (progress) => {
-            if (progress[0]) {
-                this.logger.log(progress[0]);
-            }
-            if (progress[1]) {
-                this.logger.error(progress[1]);
-            }
+            this.processStdOutputs(progress);
         });
 
         return cordovaResult;
+    }
+
+    private processStdOutputs(stdStr: string[]) {
+        if (stdStr[1] === "stderr") {
+            this.logger.error(stdStr[0]);
+        }
+
+        if (stdStr[1] === "stdout") {
+            this.logger.log(stdStr[0]);
+        }
+
     }
 
     private attachAndroid(attachArgs: ICordovaAttachRequestArgs): Q.Promise<IAttachRequestArgs> {
@@ -567,12 +583,7 @@ export class AppLauncher {
                 .then(() => {
                     return CordovaIosDeviceLauncher.startDebugProxy(iosDebugProxyPort);
                 }, undefined, (progress) => {
-                    if (progress[0]) {
-                        this.logger.log(progress[0]);
-                    }
-                    if (progress[1]) {
-                        this.logger.error(progress[1]);
-                    }
+                    this.processStdOutputs(progress);
                 })
                 .then(() => void (0));
         } else {
@@ -609,12 +620,7 @@ export class AppLauncher {
 
                 return cordovaRunCommand(command, args, launchArgs.env, workingDirectory)
                     .progress((progress) => {
-                        if (progress[0]) {
-                            this.logger.log(progress[0]);
-                        }
-                        if (progress[1]) {
-                            this.logger.error(progress[1]);
-                        }
+                        this.processStdOutputs(progress);
                     }).catch((err) => {
                         if (target === "emulator") {
                             return cordovaRunCommand(command, ["emulate", "ios", "--list"], launchArgs.env, workingDirectory).then((output) => {

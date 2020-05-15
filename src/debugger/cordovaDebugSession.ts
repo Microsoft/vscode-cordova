@@ -10,10 +10,10 @@ import { generateRandomPortNumber} from "../utils/extensionHelper";
 import { Telemetry } from "../utils/telemetry";
 import { killChildProcess } from "./extension";
 import { CordovaCDPProxy } from "./cdp-proxy/cordovaCDPProxy";
-import { PluginSimulator } from "../extension/simulate";
 import { CordovaCommandHelper } from "../utils/cordovaCommandHelper";
 import { AppLauncher } from "../extension/appLauncher";
 import { ICordovaAttachRequestArgs, IAttachRequestArgs, ISourceMapPathOverrides, ICordovaLaunchRequestArgs } from "./cordovaRequestInterfaces";
+import { CordovaProjectHelper } from "../utils/cordovaProjectHelper";
 
 // enum DebugSessionStatus {
 //     FirstConnection,
@@ -57,7 +57,7 @@ export class CordovaDebugSession extends LoggingDebugSession {
     // private readonly pwaNodeSessionName: string;
 
     // private projectRootPath: string;
-    // private isSettingsInitialized: boolean; // used to prevent parameters reinitialization when attach is called from launch function
+    // private isSettingsInitialized: boolean; // used to prevent parameters rueinitialization when attach is called from launch function
     private cordovaCdpProxy: CordovaCDPProxy | null;
 
     // private nodeSession: vscode.DebugSession | null;
@@ -78,7 +78,6 @@ export class CordovaDebugSession extends LoggingDebugSession {
         this.cordovaCdpProxy = null;
         // this.debugSessionStatus = DebugSessionStatus.FirstConnection;
 
-        this.appLauncher.pluginSimulator = new PluginSimulator();
         this.outputLogger = (message: string, error?: boolean | string) => {
             let category = "console";
             if (error === true) {
@@ -94,7 +93,7 @@ export class CordovaDebugSession extends LoggingDebugSession {
             }
             this.sendEvent(new OutputEvent(message + newLine, category));
         };
-        this.appLauncher.attachedDeferred = Q.defer<void>();
+
     }
 
     public static getRunArguments(fsPath: string): Q.Promise<string[]> {
@@ -124,7 +123,7 @@ export class CordovaDebugSession extends LoggingDebugSession {
         //     platform: launchArgs.platform,
         //     target: launchArgs.target,
         // };
-
+        this.appLauncher = AppLauncher.getAppLauncherByProjectRootPath(CordovaProjectHelper.getCordovaProjectRoot(launchArgs.cwd));
         return this.appLauncher.launch(launchArgs)
         .catch((err) => {
             this.outputLogger(err.message || err, true);
@@ -147,7 +146,7 @@ export class CordovaDebugSession extends LoggingDebugSession {
         //     platform: attachArgs.platform,
         //     target: attachArgs.target,
         // };
-
+        this.appLauncher = AppLauncher.getAppLauncherByProjectRootPath(CordovaProjectHelper.getCordovaProjectRoot(attachArgs.cwd));
         return this.appLauncher.attach(attachArgs)
         .then((processedAttachArgs: IAttachRequestArgs & { url?: string }) => {
             this.outputLogger("Attaching to app.");
