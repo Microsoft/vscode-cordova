@@ -2,25 +2,18 @@
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
 import * as vscode from "vscode";
-import * as child_process from "child_process";
 import * as Q from "q";
-import * as path from "path";
-import * as fs from "fs";
-import * as simulate from "cordova-simulate";
 import { LoggingDebugSession, OutputEvent } from "vscode-debugadapter";
 import { DebugProtocol } from "vscode-debugprotocol";
 // import { CordovaCDPProxy } from "./cdp-proxy/cordovaCDPProxy";
-import * as elementtree from "elementtree";
-import { generateRandomPortNumber, retryAsync, promiseGet } from "../utils/extensionHelper";
-import { TelemetryHelper} from "../utils/telemetryHelper";
-import { CordovaProjectHelper } from "../utils/cordovaProjectHelper";
+import { generateRandomPortNumber} from "../utils/extensionHelper";
 import { Telemetry } from "../utils/telemetry";
-import { execCommand, cordovaRunCommand, killChildProcess } from "./extension";
+import { killChildProcess } from "./extension";
 import { CordovaCDPProxy } from "./cdp-proxy/cordovaCDPProxy";
-import { CordovaIosDeviceLauncher } from "./cordovaIosDeviceLauncher";
 import { PluginSimulator } from "../extension/simulate";
 import { CordovaCommandHelper } from "../utils/cordovaCommandHelper";
 import { AppLauncher } from "../extension/appLauncher";
+import { ICordovaAttachRequestArgs, IAttachRequestArgs, ISourceMapPathOverrides, ICordovaLaunchRequestArgs } from "./cordovaRequestInterfaces";
 
 // enum DebugSessionStatus {
 //     FirstConnection,
@@ -31,66 +24,13 @@ import { AppLauncher } from "../extension/appLauncher";
 //     ConnectionFailed,
 // }
 
-const ANDROID_MANIFEST_PATH = path.join("platforms", "android", "AndroidManifest.xml");
-const ANDROID_MANIFEST_PATH_8 = path.join("platforms", "android", "app", "src", "main", "AndroidManifest.xml");
-
-export interface ICordovaAttachRequestArgs extends DebugProtocol.AttachRequestArguments, IAttachRequestArgs {
-    timeout: number;
-    cwd: string; /* Automatically set by VS Code to the currently opened folder */
-    platform: string;
-    target?: string;
-    webkitRangeMin?: number;
-    webkitRangeMax?: number;
-    attachAttempts?: number;
-    attachDelay?: number;
-    attachTimeout?: number;
-    simulatorInExternalBrowser?: boolean;
-
-    // Ionic livereload properties
-    ionicLiveReload?: boolean;
-}
-
-export interface ICordovaLaunchRequestArgs extends DebugProtocol.LaunchRequestArguments, ICordovaAttachRequestArgs {
-    timeout: number;
-    iosDebugProxyPort?: number;
-    appStepLaunchTimeout?: number;
-
-    // Ionic livereload properties
-    ionicLiveReload?: boolean;
-    devServerPort?: number;
-    devServerAddress?: string;
-    devServerTimeout?: number;
-
-    // Chrome debug properties
-    url?: string;
-    userDataDir?: string;
-    runtimeExecutable?: string;
-    runtimeArgs?: string[];
-
-    // Cordova-simulate properties
-    simulatePort?: number;
-    livereload?: boolean;
-    forceprepare?: boolean;
-    simulateTempDir?: string;
-    corsproxy?: boolean;
-    runArguments?: string[];
-    cordovaExecutable?: string;
-    envFile?: string;
-    env?: any;
-}
 
 // interface DebuggingProperties {
 //     platform: string;
 //     target?: string;
 // }
 
-// `RSIDZTW<NL` are process status codes (as per `man ps`), skip them
-const PS_FIELDS_SPLITTER_RE = /\s+(?:[RSIDZTW<NL]\s+)?/;
 
-export interface IStringDictionary<T> {
-    [name: string]: T;
-}
-export type ISourceMapPathOverrides = IStringDictionary<string>;
 // Keep in sync with sourceMapPathOverrides package.json default values
 const DefaultWebSourceMapPathOverrides: ISourceMapPathOverrides = {
     "webpack:///./~/*": "${cwd}/node_modules/*",
@@ -100,29 +40,15 @@ const DefaultWebSourceMapPathOverrides: ISourceMapPathOverrides = {
     "./*": "${cwd}/*",
 };
 
-export interface IAttachRequestArgs extends DebugProtocol.AttachRequestArguments {
-    cwd: string; /* Automatically set by VS Code to the currently opened folder */
-    port: number;
-    url?: string;
-    address?: string;
-    trace?: string;
-}
-
-export interface ILaunchRequestArgs extends DebugProtocol.LaunchRequestArguments, IAttachRequestArgs { }
-
 export class CordovaDebugSession extends LoggingDebugSession {
-    private static pidofNotFoundError = "/system/bin/sh: pidof: not found";
+
     // Workaround to handle breakpoint location requests correctly on some platforms
     // private static debuggingProperties: DebuggingProperties;
 
     private outputLogger: (message: string, error?: boolean | string) => void;
-    private adbPortForwardingInfo: { targetDevice: string, port: number };
-    private ionicLivereloadProcess: child_process.ChildProcess;
-    private ionicDevServerUrls: string[];
+
     // private previousLaunchArgs: ICordovaLaunchRequestArgs;
     // private previousAttachArgs: ICordovaAttachRequestArgs;
-
-    private attachedDeferred: Q.Deferred<void>;
     // private debugSessionStatus: DebugSessionStatus;
 
     private readonly cdpProxyPort: number;
@@ -133,7 +59,7 @@ export class CordovaDebugSession extends LoggingDebugSession {
     // private projectRootPath: string;
     // private isSettingsInitialized: boolean; // used to prevent parameters reinitialization when attach is called from launch function
     private cordovaCdpProxy: CordovaCDPProxy | null;
-    private chromeProc: child_process.ChildProcess;
+
     // private nodeSession: vscode.DebugSession | null;
     // private debugSessionStatus: DebugSessionStatus;
     private onDidStartDebugSessionHandler: vscode.Disposable;
@@ -171,7 +97,7 @@ export class CordovaDebugSession extends LoggingDebugSession {
             }
             this.sendEvent(new OutputEvent(message + newLine, category));
         };
-        this.attachedDeferred = Q.defer<void>();
+        this.appLauncher.attachedDeferred = Q.defer<void>();
     }
 
     public static getRunArguments(fsPath: string): Q.Promise<string[]> {
@@ -225,7 +151,7 @@ export class CordovaDebugSession extends LoggingDebugSession {
         //     target: attachArgs.target,
         // };
 
-        this.appLauncher.attach(attachArgs)
+        return this.appLauncher.attach(attachArgs)
         .then((processedAttachArgs: IAttachRequestArgs & { url?: string }) => {
             this.outputLogger("Attaching to app.");
             this.outputLogger("", true); // Send blank message on stderr to include a divider between prelude and app starting
@@ -294,79 +220,12 @@ export class CordovaDebugSession extends LoggingDebugSession {
         }
     }
 
-
-
-    private runAdbCommand(args, errorLogger): Q.Promise<string> {
-        const originalPath = process.env["PATH"];
-        if (process.env["ANDROID_HOME"]) {
-            process.env["PATH"] += path.delimiter + path.join(process.env["ANDROID_HOME"], "platform-tools");
-        }
-        return execCommand("adb", args, errorLogger).finally(() => {
-            process.env["PATH"] = originalPath;
-        });
-    }
-
-
-
-    private resetSimulateViewport(): Q.Promise<void> {
-        return this.attachedDeferred.promise;
-        // .promise.then(() =>
-        //     this.chrome.Emulation.clearDeviceMetricsOverride()
-        // ).then(() =>
-        //     this.chrome.Emulation.setEmulatedMedia({media: ""})
-        // ).then(() =>
-        //     this.chrome.Emulation.resetPageScaleFactor()
-        // );
-    }
-
-    private changeSimulateViewport(data: simulate.ResizeViewportData): Q.Promise<void> {
-        return this.attachedDeferred.promise;
-        // .then(() =>
-        //     this.chrome.Emulation.setDeviceMetricsOverride({
-        //         width: data.width,
-        //         height: data.height,
-        //         deviceScaleFactor: 0,
-        //         mobile: true,
-        //     })
-        // );
-    }
-
-    private checkIfTargetIsiOSSimulator(target: string, cordovaCommand: string, env: any, workingDirectory: string): Q.Promise<void> {
-        const simulatorTargetIsNotSupported = () => {
-            const message = "Invalid target. Please, check target parameter value in your debug configuration and make sure it's a valid iPhone device identifier. Proceed to https://aka.ms/AA3xq86 for more information.";
-            throw new Error(message);
-        };
-        if (target === "emulator") {
-            simulatorTargetIsNotSupported();
-        }
-        return cordovaRunCommand(cordovaCommand, ["emulate", "ios", "--list"], env, workingDirectory).then((output) => {
-            // Get list of emulators as raw strings
-            output[0] = output[0].replace(/Available iOS Simulators:/, "");
-
-            // Clean up each string to get real value
-            const emulators = output[0].split("\n").map((value) => {
-                let match = value.match(/(.*)(?=,)/gm);
-                if (!match) {
-                    return null;
-                }
-                return match[0].replace(/\t/, "");
-            });
-
-            return (emulators.indexOf(target) >= 0);
-        })
-        .then((result) => {
-            if (result) {
-                simulatorTargetIsNotSupported();
-            }
-        });
-    }
-
     private cleanUp(): Q.Promise<void> {
         const errorLogger = (message) => this.outputLogger(message, true);
 
-        if (this.chromeProc) {
-            this.chromeProc.kill("SIGINT");
-            this.chromeProc = null;
+        if (this.appLauncher.chromeProc) {
+            this.appLauncher.chromeProc.kill("SIGINT");
+            this.appLauncher.chromeProc = null;
         }
 
         // Clean up this session's attach and launch args
@@ -376,12 +235,12 @@ export class CordovaDebugSession extends LoggingDebugSession {
         // Stop ADB port forwarding if necessary
         let adbPortPromise: Q.Promise<void>;
 
-        if (this.adbPortForwardingInfo) {
+        if (this.appLauncher.adbPortForwardingInfo) {
             const adbForwardStopArgs =
-                ["-s", this.adbPortForwardingInfo.targetDevice,
+                ["-s", this.appLauncher.adbPortForwardingInfo.targetDevice,
                     "forward",
-                    "--remove", `tcp:${this.adbPortForwardingInfo.port}`];
-            adbPortPromise = this.runAdbCommand(adbForwardStopArgs, errorLogger)
+                    "--remove", `tcp:${this.appLauncher.adbPortForwardingInfo.port}`];
+            adbPortPromise = this.appLauncher.runAdbCommand(adbForwardStopArgs, errorLogger)
                 .then(() => void 0);
         } else {
             adbPortPromise = Q<void>(void 0);
@@ -390,18 +249,18 @@ export class CordovaDebugSession extends LoggingDebugSession {
         // Kill the Ionic dev server if necessary
         let killServePromise: Q.Promise<void>;
 
-        if (this.ionicLivereloadProcess) {
-            this.ionicLivereloadProcess.removeAllListeners("exit");
-            killServePromise = killChildProcess(this.ionicLivereloadProcess).finally(() => {
-                this.ionicLivereloadProcess = null;
+        if (this.appLauncher.ionicLivereloadProcess) {
+            this.appLauncher.ionicLivereloadProcess.removeAllListeners("exit");
+            killServePromise = killChildProcess(this.appLauncher.ionicLivereloadProcess).finally(() => {
+                this.appLauncher.ionicLivereloadProcess = null;
             });
         } else {
             killServePromise = Q<void>(void 0);
         }
 
         // Clear the Ionic dev server URL if necessary
-        if (this.ionicDevServerUrls) {
-            this.ionicDevServerUrls = null;
+        if (this.appLauncher.ionicDevServerUrls) {
+            this.appLauncher.ionicDevServerUrls = null;
         }
 
         // Close the simulate debug-host socket if necessary

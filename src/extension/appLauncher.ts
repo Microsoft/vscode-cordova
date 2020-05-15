@@ -6,20 +6,24 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 import * as Q from "q";
-import { ICordovaLaunchRequestArgs, CordovaDebugSession, ICordovaAttachRequestArgs, IAttachRequestArgs } from "../debugger/cordovaDebugSession";
+import * as elementtree from "elementtree";
+import * as child_process from "child_process";
+import * as simulate from "cordova-simulate";
+import * as execa from "execa";
+import * as chromeBrowserHelper from "vscode-js-debug-browsers";
+import { CordovaDebugSession } from "../debugger/cordovaDebugSession";
 import { CordovaProjectHelper, IProjectType } from "../utils/cordovaProjectHelper";
 import { TelemetryHelper, TelemetryGenerator, ISimulateTelemetryProperties } from "../utils/telemetryHelper";
 import { OutputChannelLogger } from "../utils/outputChannelLogger";
 import { CordovaCDPProxy } from "../debugger/cdp-proxy/cordovaCDPProxy";
-import { generateRandomPortNumber } from "../utils/extensionHelper";
-
+import { generateRandomPortNumber, retryAsync, promiseGet } from "../utils/extensionHelper";
 import { Telemetry } from "../utils/telemetry";
-import { cordovaRunCommand } from "../debugger/extension";
+import { cordovaRunCommand, execCommand, cordovaStartCommand } from "../debugger/extension";
 import { settingsHome } from "../utils/settingsHelper";
 import { SimulationInfo } from "../common/simulationInfo";
-import simulate = require("cordova-simulate");
 import { PluginSimulator } from "./simulate";
 import { CordovaIosDeviceLauncher } from "../debugger/cordovaIosDeviceLauncher";
+import { ICordovaLaunchRequestArgs, ICordovaAttachRequestArgs, IAttachRequestArgs } from "../debugger/cordovaRequestInterfaces";
 
 enum TargetType {
     Emulator = "emulator",
@@ -31,14 +35,27 @@ export class AppLauncher {
     private readonly cdpProxyPort: number;
     private readonly cdpProxyHostAddress: string;
 
+    private static pidofNotFoundError = "/system/bin/sh: pidof: not found";
     private static NO_LIVERELOAD_WARNING = "Warning: Ionic live reload is currently only supported for Ionic 1 projects. Continuing deployment without Ionic live reload...";
     private static SIMULATE_TARGETS: string[] = ["default", "chrome", "chromium", "edge", "firefox", "ie", "opera", "safari"];
     private static CHROME_DATA_DIR = "chrome_sandbox_dir"; // The directory to use for the sandboxed Chrome instance that gets launched to debug the app
+    private static ANDROID_MANIFEST_PATH = path.join("platforms", "android", "AndroidManifest.xml");
+    private static ANDROID_MANIFEST_PATH_8 = path.join("platforms", "android", "app", "src", "main", "AndroidManifest.xml");
+
+    // `RSIDZTW<NL` are process status codes (as per `man ps`), skip them
+    private static PS_FIELDS_SPLITTER_RE = /\s+(?:[RSIDZTW<NL]\s+)?/;
 
     private workspaceFolder: vscode.WorkspaceFolder;
+
+
     private cordovaCdpProxy: CordovaCDPProxy;
     private logger: OutputChannelLogger = OutputChannelLogger.getMainChannel();
     private telemetryInitialized: boolean;
+    public attachedDeferred: Q.Deferred<void>;
+    public adbPortForwardingInfo: { targetDevice: string, port: number };
+    public ionicDevServerUrls: string[];
+    public ionicLivereloadProcess: child_process.ChildProcess;
+    public chromeProc: child_process.ChildProcess;
     public simulateDebugHost: SocketIOClient.Socket;
     public pluginSimulator: PluginSimulator;
 
@@ -105,6 +122,17 @@ export class AppLauncher {
 
         return TargetType.Device;
     }
+
+    public runAdbCommand(args, errorLogger): Q.Promise<string> {
+        const originalPath = process.env["PATH"];
+        if (process.env["ANDROID_HOME"]) {
+            process.env["PATH"] += path.delimiter + path.join(process.env["ANDROID_HOME"], "platform-tools");
+        }
+        return execCommand("adb", args, errorLogger).finally(() => {
+            process.env["PATH"] = originalPath;
+        });
+    }
+
     public async launch(launchArgs: ICordovaLaunchRequestArgs): Promise<void> {
         return new Promise<void>((resolve, reject) => this.initializeTelemetry(launchArgs.cwd)
         .then(() => TelemetryHelper.generate("launch", (generator) => {
@@ -184,7 +212,7 @@ export class AppLauncher {
         })));
     }
 
-    public async attach(attachArgs: ICordovaAttachRequestArgs) {
+    public async attach(attachArgs: ICordovaAttachRequestArgs): Promise<IAttachRequestArgs> {
         return new Promise<IAttachRequestArgs>((resolve, reject) => this.initializeTelemetry(attachArgs.cwd)
         .then(() => TelemetryHelper.generate("attach", (generator) => {
         attachArgs.port = attachArgs.port || 9222;
@@ -229,7 +257,7 @@ export class AppLauncher {
         .catch((err) => {
             reject(err);
         })
-        .done(resolve, reject)));
+        .done(() => resolve, reject)));
     }
 
     private launchAndroid(launchArgs: ICordovaLaunchRequestArgs, projectType: IProjectType, runArguments: string[]): Q.Promise<void> {
@@ -289,7 +317,6 @@ export class AppLauncher {
     }
 
     private attachAndroid(attachArgs: ICordovaAttachRequestArgs): Q.Promise<IAttachRequestArgs> {
-        let errorLogger = (message: string) => this.outputLogger(message, true);
         // Determine which device/emulator we are targeting
 
         // For devices we look for "device" string but skip lines with "emulator"
@@ -322,10 +349,10 @@ export class AppLauncher {
                 throw err;
             });
 
-        let packagePromise: Q.Promise<string> = Q.nfcall(fs.readFile, path.join(attachArgs.cwd, ANDROID_MANIFEST_PATH))
+        let packagePromise: Q.Promise<string> = Q.nfcall(fs.readFile, path.join(attachArgs.cwd, AppLauncher.ANDROID_MANIFEST_PATH))
             .catch((err) => {
                 if (err && err.code === "ENOENT") {
-                    return Q.nfcall(fs.readFile, path.join(attachArgs.cwd, ANDROID_MANIFEST_PATH_8));
+                    return Q.nfcall(fs.readFile, path.join(attachArgs.cwd, AppLauncher.ANDROID_MANIFEST_PATH_8));
                 }
                 throw err;
             })
@@ -349,21 +376,21 @@ export class AppLauncher {
                             return pid.trim();
                         }
 
-                        throw Error(CordovaDebugSession.pidofNotFoundError);
+                        throw Error(AppLauncher.pidofNotFoundError);
 
                     }).catch((err) => {
-                        if (err.message !== CordovaDebugSession.pidofNotFoundError) {
+                        if (err.message !== AppLauncher.pidofNotFoundError) {
                             return;
                         }
 
                         return this.runAdbCommand(getPidCommandArguments, errorLogger)
                             .then((psResult) => {
                                 const lines = psResult.split("\n");
-                                const keys = lines.shift().split(PS_FIELDS_SPLITTER_RE);
+                                const keys = lines.shift().split(AppLauncher.PS_FIELDS_SPLITTER_RE);
                                 const nameIdx = keys.indexOf("NAME");
                                 const pidIdx = keys.indexOf("PID");
                                 for (const line of lines) {
-                                    const fields = line.trim().split(PS_FIELDS_SPLITTER_RE).filter(field => !!field);
+                                    const fields = line.trim().split(AppLauncher.PS_FIELDS_SPLITTER_RE).filter(field => !!field);
                                     if (fields.length < nameIdx) {
                                         continue;
                                     }
@@ -418,7 +445,7 @@ export class AppLauncher {
                 .then((abstractName) => {
                     // Configure port forwarding to the app
                     let forwardSocketCommandArguments = ["-s", targetDevice, "forward", `tcp:${attachArgs.port}`, `localabstract:${abstractName}`];
-                    this.outputLogger("Forwarding debug port");
+                    this.logger.log("Forwarding debug port");
                     return this.runAdbCommand(forwardSocketCommandArguments, errorLogger).then(() => {
                         this.adbPortForwardingInfo = { targetDevice, port: attachArgs.port };
                     });
@@ -567,7 +594,7 @@ export class AppLauncher {
                             // Livereload is enabled, let Ionic do the launch
                             args.push("--livereload");
                         } else {
-                            this.logger.log(CordovaDebugSession.NO_LIVERELOAD_WARNING);
+                            this.logger.log(AppLauncher.NO_LIVERELOAD_WARNING);
                         }
                     }
                 }
@@ -607,7 +634,7 @@ export class AppLauncher {
             attachArgs.attachAttempts = attachArgs.attachAttempts || 20;
             attachArgs.attachDelay = attachArgs.attachDelay || 1000;
             // Start the tunnel through to the webkit debugger on the device
-            this.outputLogger("Configuring debugging proxy");
+            this.logger.log("Configuring debugging proxy");
 
             const retry = function<T> (func, condition, retryCount): Q.Promise<T> {
                 return retryAsync(func, condition, retryCount, 1, attachArgs.attachDelay, "Unable to find webview");
@@ -664,7 +691,7 @@ export class AppLauncher {
                                     }
                                 });
                                 if (!foundWebViews.length && webviewsList.length === 1) {
-                                    this.outputLogger("Unable to find target app webview, trying to fallback to the only running webview");
+                                    this.logger.log("Unable to find target app webview, trying to fallback to the only running webview");
                                     return {
                                         relevantViews: webviewsList,
                                         targetPort,
@@ -719,6 +746,35 @@ export class AppLauncher {
         }
     }
 
+    private checkIfTargetIsiOSSimulator(target: string, cordovaCommand: string, env: any, workingDirectory: string): Q.Promise<void> {
+        const simulatorTargetIsNotSupported = () => {
+            const message = "Invalid target. Please, check target parameter value in your debug configuration and make sure it's a valid iPhone device identifier. Proceed to https://aka.ms/AA3xq86 for more information.";
+            throw new Error(message);
+        };
+        if (target === "emulator") {
+            simulatorTargetIsNotSupported();
+        }
+        return cordovaRunCommand(cordovaCommand, ["emulate", "ios", "--list"], env, workingDirectory).then((output) => {
+            // Get list of emulators as raw strings
+            output[0] = output[0].replace(/Available iOS Simulators:/, "");
+
+            // Clean up each string to get real value
+            const emulators = output[0].split("\n").map((value) => {
+                let match = value.match(/(.*)(?=,)/gm);
+                if (!match) {
+                    return null;
+                }
+                return match[0].replace(/\t/, "");
+            });
+
+            return (emulators.indexOf(target) >= 0);
+        })
+        .then((result) => {
+            if (result) {
+                simulatorTargetIsNotSupported();
+            }
+        });
+    }
 
         /**
      * Starts an Ionic livereload server ("serve" or "run / emulate --livereload"). Returns a promise fulfilled with the full URL to the server.
@@ -837,7 +893,7 @@ export class AppLauncher {
 
         let serverOutputHandler = (data: Buffer) => {
             serverOut += data.toString();
-            this.logger.log(data.toString(), "stdout");
+            this.logger.log(data.toString());
 
             // Listen for the server to be ready. We check for the "Running dev server:  http://localhost:<port>/" and "dev server running: http://localhost:<port>/" strings to decide that.
 
@@ -1001,7 +1057,7 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
             this.chromeProc.unref();
             this.chromeProc.on("error", (err) => {
                 const errMsg = "Chrome error: " + err;
-                this.logger.log(errMsg, true);
+                this.logger.error(errMsg);
                 this.stop();
             });
 
@@ -1015,13 +1071,12 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
     }
 
     private launchServe(launchArgs: ICordovaLaunchRequestArgs, projectType: IProjectType, runArguments: string[]): Q.Promise<void> {
-        let errorLogger = (message) => this.logger.log(message, true);
 
         // Currently, "ionic serve" is only supported for Ionic projects
         if (!CordovaProjectHelper.isIonicAngularProjectByProjectType(projectType)) {
             let errorMessage = "Serving to the browser is currently only supported for Ionic projects";
 
-            errorLogger(errorMessage);
+            this.logger.error(errorMessage);
 
             return Q.reject<void>(new Error(errorMessage));
         }
@@ -1047,7 +1102,7 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
         }).then((devServerUrls: string[]) => {
             // Prepare Chrome launch args
             launchArgs.url = devServerUrls[0];
-            launchArgs.userDataDir = path.join(settingsHome(), CordovaDebugSession.CHROME_DATA_DIR);
+            launchArgs.userDataDir = path.join(settingsHome(), AppLauncher.CHROME_DATA_DIR);
 
             // Launch Chrome and attach
             this.logger.log("Attaching to app");
@@ -1061,7 +1116,7 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
         let simulateDeferred: Q.Deferred<void> = Q.defer<void>();
 
         let simulateConnectErrorHandler = (err: any): void => {
-            this.outputLogger(`Error connecting to the simulated app.`);
+            this.logger.log(`Error connecting to the simulated app.`);
             simulateDeferred.reject(err);
         };
 
@@ -1071,12 +1126,12 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
         this.simulateDebugHost.on("connect", () => {
             this.simulateDebugHost.on("resize-viewport", (data: simulate.ResizeViewportData) => {
                 this.changeSimulateViewport(data).catch(() => {
-                    this.outputLogger(viewportResizeFailMessage, true);
+                    this.logger.error(viewportResizeFailMessage);
                 }).done();
             });
             this.simulateDebugHost.on("reset-viewport", () => {
                 this.resetSimulateViewport().catch(() => {
-                    this.outputLogger(viewportResizeFailMessage, true);
+                    this.logger.error(viewportResizeFailMessage);
                 }).done();
             });
             this.simulateDebugHost.emit("register-debug-host", { handlers: ["reset-viewport", "resize-viewport"] });
@@ -1085,7 +1140,31 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
 
         return simulateDeferred.promise;
     }
+
     private getErrorMessage(e: any): string {
         return e.message || e.error || e.data || e;
+    }
+
+    private resetSimulateViewport(): Q.Promise<void> {
+        return this.attachedDeferred.promise;
+        // .promise.then(() =>
+        //     this.chrome.Emulation.clearDeviceMetricsOverride()
+        // ).then(() =>
+        //     this.chrome.Emulation.setEmulatedMedia({media: ""})
+        // ).then(() =>
+        //     this.chrome.Emulation.resetPageScaleFactor()
+        // );
+    }
+
+    private changeSimulateViewport(data: simulate.ResizeViewportData): Q.Promise<void> {
+        return this.attachedDeferred.promise;
+        // .then(() =>
+        //     this.chrome.Emulation.setDeviceMetricsOverride({
+        //         width: data.width,
+        //         height: data.height,
+        //         deviceScaleFactor: 0,
+        //         mobile: true,
+        //     })
+        // );
     }
 }
