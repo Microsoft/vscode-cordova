@@ -221,7 +221,6 @@ export class CordovaDebugSession extends LoggingDebugSession {
     }
 
     private cleanUp(): Q.Promise<void> {
-        const errorLogger = (message) => this.outputLogger(message, true);
 
         if (this.appLauncher.chromeProc) {
             this.appLauncher.chromeProc.kill("SIGINT");
@@ -240,7 +239,7 @@ export class CordovaDebugSession extends LoggingDebugSession {
                 ["-s", this.appLauncher.adbPortForwardingInfo.targetDevice,
                     "forward",
                     "--remove", `tcp:${this.appLauncher.adbPortForwardingInfo.port}`];
-            adbPortPromise = this.appLauncher.runAdbCommand(adbForwardStopArgs, errorLogger)
+            adbPortPromise = this.appLauncher.runAdbCommand(adbForwardStopArgs)
                 .then(() => void 0);
         } else {
             adbPortPromise = Q<void>(void 0);

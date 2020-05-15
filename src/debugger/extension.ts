@@ -6,11 +6,12 @@ import {CordovaProjectHelper} from "../utils/cordovaProjectHelper";
 import * as Q from "q";
 import * as path from "path";
 import * as util from "util";
+import { OutputChannelLogger } from "../utils/outputChannelLogger";
 
 // suppress the following strings because they are not actual errors:
 const errorsToSuppress = ["Run an Ionic project on a connected device"];
 
-export function execCommand(command: string, args: string[], errorLogger: (message: string) => void): Q.Promise<string> {
+export function execCommand(command: string, args: string[]): Q.Promise<string> {
     let deferred = Q.defer<string>();
     let proc = child_process.spawn(command, args, { stdio: "pipe" });
     let stderr = "";
@@ -26,8 +27,9 @@ export function execCommand(command: string, args: string[], errorLogger: (messa
     });
     proc.on("close", (code: number) => {
         if (code !== 0) {
-            errorLogger(stderr);
-            errorLogger(stdout);
+            const logger = OutputChannelLogger.getMainChannel();
+            logger.error(stderr);
+            logger.error(stderr)
             deferred.reject(`Error running '${command} ${args.join(" ")}'`);
         }
         deferred.resolve(stdout);

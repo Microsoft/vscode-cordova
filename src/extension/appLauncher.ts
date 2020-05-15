@@ -47,7 +47,6 @@ export class AppLauncher {
 
     private workspaceFolder: vscode.WorkspaceFolder;
 
-
     private cordovaCdpProxy: CordovaCDPProxy;
     private logger: OutputChannelLogger = OutputChannelLogger.getMainChannel();
     private telemetryInitialized: boolean;
@@ -123,12 +122,12 @@ export class AppLauncher {
         return TargetType.Device;
     }
 
-    public runAdbCommand(args, errorLogger): Q.Promise<string> {
+    public runAdbCommand(args): Q.Promise<string> {
         const originalPath = process.env["PATH"];
         if (process.env["ANDROID_HOME"]) {
             process.env["PATH"] += path.delimiter + path.join(process.env["ANDROID_HOME"], "platform-tools");
         }
-        return execCommand("adb", args, errorLogger).finally(() => {
+        return execCommand("adb", args).finally(() => {
             process.env["PATH"] = originalPath;
         });
     }
@@ -323,7 +322,7 @@ export class AppLauncher {
         const deviceFilter = (line: string) => /\w+\tdevice/.test(line) && !/emulator/.test(line);
         const emulatorFilter = (line: string) => /device/.test(line) && /emulator/.test(line);
 
-        let adbDevicesResult: Q.Promise<string> = this.runAdbCommand(["devices"], errorLogger)
+        let adbDevicesResult: Q.Promise<string> = this.runAdbCommand(["devices"])
             .then<string>((devicesOutput) => {
 
                 const targetFilter = attachArgs.target.toLowerCase() === "device" ? deviceFilter :
@@ -335,7 +334,7 @@ export class AppLauncher {
                     .map(line => line.replace(/\tdevice/, "").replace("\r", ""))[0];
 
                 if (!result) {
-                    errorLogger(devicesOutput);
+                    this.logger.error(devicesOutput);
                     throw new Error(`Unable to find target ${attachArgs.target}`);
                 }
 
@@ -370,7 +369,7 @@ export class AppLauncher {
 
             let findAbstractNameFunction = () =>
                 // Get the pid from app package name
-                this.runAdbCommand(pidofCommandArguments, errorLogger)
+                this.runAdbCommand(pidofCommandArguments)
                     .then((pid) => {
                         if (pid && /^[0-9]+$/.test(pid.trim())) {
                             return pid.trim();
@@ -383,7 +382,7 @@ export class AppLauncher {
                             return;
                         }
 
-                        return this.runAdbCommand(getPidCommandArguments, errorLogger)
+                        return this.runAdbCommand(getPidCommandArguments)
                             .then((psResult) => {
                                 const lines = psResult.split("\n");
                                 const keys = lines.shift().split(AppLauncher.PS_FIELDS_SPLITTER_RE);
@@ -402,7 +401,7 @@ export class AppLauncher {
                     })
                     // Get the "_devtools_remote" abstract name by filtering /proc/net/unix with process inodes
                     .then(pid =>
-                        this.runAdbCommand(getSocketsCommandArguments, errorLogger)
+                        this.runAdbCommand(getSocketsCommandArguments)
                             .then((getSocketsResult) => {
                                 const lines = getSocketsResult.split("\n");
                                 const keys = lines.shift().split(/[\s\r]+/);
@@ -446,7 +445,7 @@ export class AppLauncher {
                     // Configure port forwarding to the app
                     let forwardSocketCommandArguments = ["-s", targetDevice, "forward", `tcp:${attachArgs.port}`, `localabstract:${abstractName}`];
                     this.logger.log("Forwarding debug port");
-                    return this.runAdbCommand(forwardSocketCommandArguments, errorLogger).then(() => {
+                    return this.runAdbCommand(forwardSocketCommandArguments).then(() => {
                         this.adbPortForwardingInfo = { targetDevice, port: attachArgs.port };
                     });
                 });
@@ -605,13 +604,18 @@ export class AppLauncher {
 
                 return cordovaRunCommand(command, args, launchArgs.env, workingDirectory)
                     .progress((progress) => {
-                        this.logger.log(progress[0], progress[1]);
+                        if (progress[0]) {
+                            this.logger.log(progress[0]);
+                        }
+                        if (progress[1]) {
+                            this.logger.error(progress[1]);
+                        }
                     }).catch((err) => {
                         if (target === "emulator") {
                             return cordovaRunCommand(command, ["emulate", "ios", "--list"], launchArgs.env, workingDirectory).then((output) => {
                                 // List out available targets
-                                errorLogger("Unable to run with given target.");
-                                errorLogger(output[0].replace(/\*+[^*]+\*+/g, "")); // Print out list of targets, without ** RUN SUCCEEDED **
+                                this.logger.error("Unable to run with given target.");
+                                this.logger.error(output[0].replace(/\*+[^*]+\*+/g, "")); // Print out list of targets, without ** RUN SUCCEEDED **
                                 throw err;
                             });
                         }
@@ -881,7 +885,7 @@ export class AppLauncher {
 
             if (!serverDeferred.promise.isPending() && !appDeferred.promise.isPending()) {
                 // We are already debugging; disconnect the session
-                this.logger.log(exitMessage, true);
+                this.logger.error(exitMessage);
                 this.stop();
                 throw new Error(exitMessage);
             } else {
