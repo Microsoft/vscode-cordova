@@ -113,7 +113,7 @@ function onFolderAdded(context: vscode.ExtensionContext, folder: vscode.Workspac
     // let extensionServer: ExtensionServer = new ExtensionServer(simulator, workspaceRoot);
     // extensionServer.setup();
 
-    ProjectsStorage.addFolder(folder, new AppLauncher());
+    ProjectsStorage.addFolder(folder, new AppLauncher(folder));
 
     // extensionServer takes care of disposing the simulator instance
     // context.subscriptions.push(extensionServer);

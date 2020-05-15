@@ -29,7 +29,7 @@ export function execCommand(command: string, args: string[]): Q.Promise<string> 
         if (code !== 0) {
             const logger = OutputChannelLogger.getMainChannel();
             logger.error(stderr);
-            logger.error(stderr)
+            logger.error(stderr);
             deferred.reject(`Error running '${command} ${args.join(" ")}'`);
         }
         deferred.resolve(stdout);

@@ -42,6 +42,7 @@ const DefaultWebSourceMapPathOverrides: ISourceMapPathOverrides = {
 
 export class CordovaDebugSession extends LoggingDebugSession {
 
+    public appLauncher: AppLauncher;
     // Workaround to handle breakpoint location requests correctly on some platforms
     // private static debuggingProperties: DebuggingProperties;
 
@@ -52,7 +53,6 @@ export class CordovaDebugSession extends LoggingDebugSession {
     // private debugSessionStatus: DebugSessionStatus;
 
     private readonly cdpProxyPort: number;
-    private readonly cdpProxyHostAddress: string;
     // private readonly terminateCommand: string;
     // private readonly pwaNodeSessionName: string;
 
@@ -65,14 +65,11 @@ export class CordovaDebugSession extends LoggingDebugSession {
     private onDidStartDebugSessionHandler: vscode.Disposable;
     private onDidTerminateDebugSessionHandler: vscode.Disposable;
 
-    public appLauncher: AppLauncher;
-
     constructor(private session: vscode.DebugSession) {
         super();
 
         // constants definition
         this.cdpProxyPort = generateRandomPortNumber();
-        this.cdpProxyHostAddress = "127.0.0.1"; // localhost
         // this.terminateCommand = "terminate"; // the "terminate" command is sent from the client to the debug adapter in order to give the debuggee a chance for terminating itself
         // this.pwaNodeSessionName = "pwa-node"; // the name of node debug session created by js-debug extension
 
@@ -193,13 +190,13 @@ export class CordovaDebugSession extends LoggingDebugSession {
                 // debug sessions from other ones. So we can save and process only the extension's debug sessions
                 // in vscode.debug API methods "onDidStartDebugSession" and "onDidTerminateDebugSession".
                 cordovaDebugSessionId: this.session.id,
-                // sourceMapPathOverrides: this.getSourceMapPathOverrides(vscode.workspace.workspaceFolders[0].uri.fsPath, DefaultWebSourceMapPathOverrides),
+                sourceMapPathOverrides: this.getSourceMapPathOverrides(this.appLauncher.workspaceFolder.uri.fsPath, DefaultWebSourceMapPathOverrides),
                 // webRoot: path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, "www"),
             };
 
             vscode.debug.startDebugging(
                 // this.appLauncher.getWorkspaceFolder(),
-                vscode.workspace.workspaceFolders[0],
+                this.appLauncher.workspaceFolder,
                 attachArguments,
                 this.session
             )

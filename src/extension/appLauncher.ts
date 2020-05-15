@@ -32,8 +32,7 @@ enum TargetType {
 }
 
 export class AppLauncher {
-    private readonly cdpProxyPort: number;
-    private readonly cdpProxyHostAddress: string;
+
 
     private static pidofNotFoundError = "/system/bin/sh: pidof: not found";
     private static NO_LIVERELOAD_WARNING = "Warning: Ionic live reload is currently only supported for Ionic 1 projects. Continuing deployment without Ionic live reload...";
@@ -41,15 +40,9 @@ export class AppLauncher {
     private static CHROME_DATA_DIR = "chrome_sandbox_dir"; // The directory to use for the sandboxed Chrome instance that gets launched to debug the app
     private static ANDROID_MANIFEST_PATH = path.join("platforms", "android", "AndroidManifest.xml");
     private static ANDROID_MANIFEST_PATH_8 = path.join("platforms", "android", "app", "src", "main", "AndroidManifest.xml");
-
     // `RSIDZTW<NL` are process status codes (as per `man ps`), skip them
     private static PS_FIELDS_SPLITTER_RE = /\s+(?:[RSIDZTW<NL]\s+)?/;
 
-    private workspaceFolder: vscode.WorkspaceFolder;
-
-    private cordovaCdpProxy: CordovaCDPProxy;
-    private logger: OutputChannelLogger = OutputChannelLogger.getMainChannel();
-    private telemetryInitialized: boolean;
     public attachedDeferred: Q.Deferred<void>;
     public adbPortForwardingInfo: { targetDevice: string, port: number };
     public ionicDevServerUrls: string[];
@@ -57,6 +50,13 @@ export class AppLauncher {
     public chromeProc: child_process.ChildProcess;
     public simulateDebugHost: SocketIOClient.Socket;
     public pluginSimulator: PluginSimulator;
+    public workspaceFolder: vscode.WorkspaceFolder;
+
+    private readonly cdpProxyPort: number;
+    private readonly cdpProxyHostAddress: string;
+    private cordovaCdpProxy: CordovaCDPProxy;
+    private logger: OutputChannelLogger = OutputChannelLogger.getMainChannel();
+    private telemetryInitialized: boolean;
 
     constructor(workspaceFolder: vscode.WorkspaceFolder) {
         // constants definition
@@ -69,6 +69,21 @@ export class AppLauncher {
             this.cdpProxyPort
         );
         this.telemetryInitialized = false;
+    }
+
+    /**
+     * Target type for telemetry
+     */
+    public static getTargetType(target: string): string {
+        if (/emulator/i.test(target)) {
+            return TargetType.Emulator;
+        }
+
+        if (/chrom/i.test(target)) {
+            return TargetType.Chrome;
+        }
+
+        return TargetType.Device;
     }
 
     /**
@@ -106,20 +121,6 @@ export class AppLauncher {
     public getVisibleEditorsCount(): Q.Promise<number> {
         // visibleTextEditors is null proof (returns empty array if no editors visible)
         return Q.resolve(vscode.window.visibleTextEditors.length);
-    }
-    /**
-     * Target type for telemetry
-     */
-    public static getTargetType(target: string): string {
-        if (/emulator/i.test(target)) {
-            return TargetType.Emulator;
-        }
-
-        if (/chrom/i.test(target)) {
-            return TargetType.Chrome;
-        }
-
-        return TargetType.Device;
     }
 
     public runAdbCommand(args): Q.Promise<string> {
@@ -257,6 +258,10 @@ export class AppLauncher {
             reject(err);
         })
         .done(() => resolve, reject)));
+    }
+
+    public isSimulateTarget(target: string) {
+        return AppLauncher.SIMULATE_TARGETS.indexOf(target) > -1;
     }
 
     private launchAndroid(launchArgs: ICordovaLaunchRequestArgs, projectType: IProjectType, runArguments: string[]): Q.Promise<void> {
@@ -780,7 +785,7 @@ export class AppLauncher {
         });
     }
 
-        /**
+    /**
      * Starts an Ionic livereload server ("serve" or "run / emulate --livereload"). Returns a promise fulfilled with the full URL to the server.
      */
     private startIonicDevServer(launchArgs: ICordovaLaunchRequestArgs, cliArgs: string[]): Q.Promise<string[]> {
@@ -886,7 +891,7 @@ export class AppLauncher {
             if (!serverDeferred.promise.isPending() && !appDeferred.promise.isPending()) {
                 // We are already debugging; disconnect the session
                 this.logger.error(exitMessage);
-                this.stop();
+                // this.stop();
                 throw new Error(exitMessage);
             } else {
                 // The Ionic dev server wasn't ready yet, so reject its promises
@@ -1062,16 +1067,11 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
             this.chromeProc.on("error", (err) => {
                 const errMsg = "Chrome error: " + err;
                 this.logger.error(errMsg);
-                this.stop();
+                // this.stop();
             });
 
-            this.session.customRequest("attach", args);
+            // this.session.customRequest("attach", args);
         }
-
-    }
-
-    public isSimulateTarget(target: string) {
-        return AppLauncher.SIMULATE_TARGETS.indexOf(target) > -1;
     }
 
     private launchServe(launchArgs: ICordovaLaunchRequestArgs, projectType: IProjectType, runArguments: string[]): Q.Promise<void> {

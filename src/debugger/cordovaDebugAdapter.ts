@@ -1454,7 +1454,7 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
         if (process.env["ANDROID_HOME"]) {
             process.env["PATH"] += path.delimiter + path.join(process.env["ANDROID_HOME"], "platform-tools");
         }
-        return execCommand("adb", args, errorLogger).finally(() => {
+        return execCommand("adb", args).finally(() => {
             process.env["PATH"] = originalPath;
         });
     }
