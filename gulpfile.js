@@ -19,6 +19,8 @@ const nls = require("vscode-nls-dev");
 const vscodeTest = require("vscode-test");
 const webpack = require("webpack");
 const filter = require("gulp-filter");
+const minimist = require("minimist");
+const es = require("event-stream");
 
 function executeCordovaCommand(cwd, command) {
   var cordovaCmd = os.platform() === "darwin" ? "cordova" : "cordova.cmd";
@@ -432,39 +434,42 @@ gulp.task(
 );
 
 // Imports localization from raw localized MLCP strings to VS Code .i18n.json files
-gulp.task("translations-import", (done) => {
-  var options = minimist(process.argv.slice(2), {
-    string: "location",
-    default: {
-      location: "../vscode-translations-import",
-    },
-  });
-  es.merge(
-    defaultLanguages.map((language) => {
-      let id = language.transifexId || language.id;
-      log(
-        path.join(
-          options.location,
-          id,
-          "vscode-extensions",
-          `${ExtensionName}.xlf`
-        )
-      );
-      return gulp
-        .src(
+gulp.task(
+  "translations-import",
+  gulp.series((done) => {
+    var options = minimist(process.argv.slice(2), {
+      string: "location",
+      default: {
+        location: "../vscode-translations-import",
+      },
+    });
+    es.merge(
+      defaultLanguages.map((language) => {
+        let id = language.transifexId || language.id;
+        log(
           path.join(
             options.location,
             id,
             "vscode-extensions",
             `${ExtensionName}.xlf`
           )
-        )
-        .pipe(nls.prepareJsonFiles())
-        .pipe(gulp.dest(path.join("./i18n", language.folderName)));
-    })
-  ).pipe(
-    es.wait(() => {
-      done();
-    })
-  );
-});
+        );
+        return gulp
+          .src(
+            path.join(
+              options.location,
+              id,
+              "vscode-extensions",
+              `${ExtensionName}.xlf`
+            )
+          )
+          .pipe(nls.prepareJsonFiles())
+          .pipe(gulp.dest(path.join("./i18n", language.folderName)));
+      })
+    ).pipe(
+      es.wait(() => {
+        done();
+      })
+    );
+  }, "add-i18n")
+);
