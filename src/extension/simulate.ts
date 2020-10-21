@@ -139,7 +139,7 @@ export class PluginSimulator implements vscode.Disposable {
         if (!this.packageInstallProc) {
             this.packageInstallProc = cp.spawn(process.platform === "win32" ? "npm.cmd" : "npm",
                 ["install", this.CORDOVA_SIMULATE_PACKAGE, "--verbose", "--no-save"],
-                { cwd: path.dirname(findFileInFolderHierarchy(__dirname, "package.json")) });
+                { cwd: path.dirname(findFileInFolderHierarchy(__dirname, "package.json")), env: process.env });
 
             this.packageInstallProc.once("exit", (code: number) => {
                 if (code === 0) {

@@ -63,6 +63,7 @@
   "cordova.properties.attach.skipFiles": "An array of file or folder names, or path globs, to skip when debugging",
   "cordova.properties.attach.pathMapping": "A mapping of URLs/paths to local folders, to resolve scripts in app webroot to scripts on disk",
   "cordova.properties.attach.ionicLiveReload": "Set this to true if you are going to attach to Ionic 4 app running with --livereload option",
+  "cordova.properties.launch.runtimeVersion": "If 'nvm' (or 'nvm-windows') or 'nvs' is used for managing Node.js versions, this attribute can be used to select a specific version of Node.js.",
   "cordova.properties.attach.sourceMapPathOverrides": "A set of mappings for rewriting the locations of source files from what the sourcemap says, to their locations on disk",
   "cordova.configuration.properties.cordova.runArguments": "Run arguments to be passed to 'cordova run/build <platform>' or 'ionic serve' command",
   "cordova.configuration.properties.cordova.cordovaExecutable": "Path to local Cordova/Ionic executable",

@@ -15,7 +15,7 @@ const errorsToSuppress = ["Run an Ionic project on a connected device"];
 
 export function execCommand(command: string, args: string[], errorLogger: (message: string) => void): Q.Promise<string> {
     let deferred = Q.defer<string>();
-    let proc = child_process.spawn(command, args, { stdio: "pipe" });
+    let proc = child_process.spawn(command, args, { stdio: "pipe" , env: process.env});
     let stderr = "";
     let stdout = "";
     proc.stderr.on("data", (data: Buffer) => {
@@ -113,7 +113,7 @@ export function cordovaStartCommand(command: string, args: string[], env: any, c
         args.push("--no-update-notifier");
     }
 
-    return child_process.spawn(command, args, { cwd: cordovaRootPath, env });
+    return child_process.spawn(command, args, { cwd: cordovaRootPath, env: Object.assign(process.env, env)});
 }
 
 export function killTree(processId: number): void {

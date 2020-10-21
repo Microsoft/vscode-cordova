@@ -27,6 +27,7 @@ export interface ICordovaAttachRequestArgs extends DebugProtocol.AttachRequestAr
     attachDelay?: number;
     attachTimeout?: number;
     simulatorInExternalBrowser?: boolean;
+    runtimeVersion?: string;
 
     // iOS debug properties
     iOSVersion?: string;

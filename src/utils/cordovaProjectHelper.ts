@@ -9,6 +9,7 @@ import { URL } from "url";
 import * as semver from "semver";
 import * as os from "os";
 import * as nls from "vscode-nls";
+import { ICordovaAttachRequestArgs, ICordovaLaunchRequestArgs } from "../debugger/requestArgs";
 nls.config({ messageFormat: nls.MessageFormat.bundle, bundleFormat: nls.BundleFormat.standalone })();
 const localize = nls.loadMessageBundle();
 
@@ -472,4 +473,116 @@ export class CordovaProjectHelper {
         const serveURLInst = new URL(url);
         return +serveURLInst.port;
     }
+
+    public static nvsStandardArchName(arch: string): string {
+        switch (arch) {
+            case "32":
+            case "x86":
+            case "ia32":
+                return "x86";
+            case "64":
+            case "x64":
+            case "amd64":
+                return "x64";
+            case "arm":
+                const arm_version = (process.config.variables as any).arm_version;
+                return arm_version ? "armv" + arm_version + "l" : "arm";
+            default:
+                return arch;
+        }
+    }
+
+    /**
+     * Parses a node version string into remote name, semantic version, and architecture
+     * components. Infers some unspecified components based on configuration.
+     */
+    private static parseVersionString(versionString: string): { nvsFormat: boolean, remoteName: string, semanticVersion: string, arch: string} {
+        const versionRegex = /^(([\w-]+)\/)?(v?(\d+(\.\d+(\.\d+)?)?))(\/((x86)|(32)|((x)?64)|(arm\w*)|(ppc\w*)))?$/i;
+
+        const match = versionRegex.exec(versionString);
+        if (!match) {
+            throw new Error("Invalid version string: " + versionString);
+        }
+
+        const nvsFormat = !!(match[2] || match[8]);
+        const remoteName = match[2] || "node";
+        const semanticVersion = match[4] || "";
+        const arch = CordovaProjectHelper.nvsStandardArchName(match[8] || process.arch);
+
+        return { nvsFormat, remoteName, semanticVersion, arch };
+    }
+
+    /**
+	 * if a runtime version is specified we prepend env.PATH with the folder that corresponds to the version.
+	 * Returns false on error
+	 */
+	public static nvmSupport(config: ICordovaAttachRequestArgs | ICordovaLaunchRequestArgs): void {
+
+		let bin: string | undefined = undefined;
+		let versionManagerName: string | undefined = undefined;
+
+		// first try the Node Version Switcher 'nvs'
+		let nvsHome = process.env["NVS_HOME"];
+		if (!nvsHome) {
+			// NVS_HOME is not always set. Probe for 'nvs' directory instead
+			const nvsDir = process.platform === "win32" ? path.join(process.env["LOCALAPPDATA"] || "", "nvs") : path.join(process.env["HOME"] || "", ".nvs");
+			if (fs.existsSync(nvsDir)) {
+				nvsHome = nvsDir;
+			}
+		}
+
+		const { nvsFormat, remoteName, semanticVersion, arch } = CordovaProjectHelper.parseVersionString(config.runtimeVersion);
+
+		if (nvsFormat || nvsHome) {
+			if (nvsHome) {
+				bin = path.join(nvsHome, remoteName, semanticVersion, arch);
+				if (process.platform !== "win32") {
+					bin = path.join(bin, "bin");
+				}
+				versionManagerName = "nvs";
+			} else {
+				throw new Error(localize("NVS_HOME.not.found.message", "Attribute 'runtimeVersion' requires Node.js version manager 'nvs'."));
+			}
+		}
+
+		if (!bin) {
+
+			// now try the Node Version Manager "nvm"
+			if (process.platform === "win32") {
+				const nvmHome = process.env["NVM_HOME"];
+				if (!nvmHome) {
+					throw new Error(localize("NVM_HOME.not.found.message", "Attribute 'runtimeVersion' requires Node.js version manager 'nvm-windows' or 'nvs'."));
+				}
+				bin = path.join(nvmHome, `v${config.runtimeVersion}`);
+				versionManagerName = "nvm-windows";
+			} else {	// macOS and linux
+				let nvmHome = process.env["NVM_DIR"];
+				if (!nvmHome) {
+					// if NVM_DIR is not set. Probe for '.nvm' directory instead
+					const nvmDir = path.join(process.env["HOME"] || "", ".nvm");
+					if (fs.existsSync(nvmDir)) {
+						nvmHome = nvmDir;
+					}
+				}
+				if (!nvmHome) {
+					throw new Error(localize("NVM_DIR.not.found.message", "Attribute 'runtimeVersion' requires Node.js version manager 'nvm' or 'nvs'."));
+				}
+				bin = path.join(nvmHome, "versions", "node", `v${config.runtimeVersion}`, "bin");
+				versionManagerName = "nvm";
+			}
+		}
+
+		if (fs.existsSync(bin)) {
+			if (!config.env) {
+				config.env = {};
+			}
+			if (process.platform === "win32") {
+				process.env["Path"] = `${bin};${process.env["Path"]}`;
+			} else {
+				process.env["PATH"] = `${bin}:${process.env["PATH"]}`;
+			}
+		} else {
+			throw new Error(localize("runtime.version.not.found.message", "Node.js version '{0}' not installed for '{1}'.", config.runtimeVersion, versionManagerName));
+		}
+	}
 }

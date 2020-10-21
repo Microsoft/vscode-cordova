@@ -182,9 +182,7 @@ export class CordovaDebugSession extends LoggingDebugSession {
 
     protected launchRequest(response: DebugProtocol.LaunchResponse, launchArgs: ICordovaLaunchRequestArgs, request?: DebugProtocol.Request): Promise<void> {
         return new Promise<void>((resolve, reject) => this.initializeTelemetry(launchArgs.cwd)
-            .then(() => {
-                this.initializeSettings(launchArgs);
-            })
+            .then(() => this.initializeSettings(launchArgs))
             .then(() => TelemetryHelper.generate("launch", (generator) => {
                 launchArgs.port = launchArgs.port || 9222;
                 if (!launchArgs.target) {
@@ -276,9 +274,7 @@ export class CordovaDebugSession extends LoggingDebugSession {
 
     protected attachRequest(response: DebugProtocol.AttachResponse, attachArgs: ICordovaAttachRequestArgs, request?: DebugProtocol.Request): Promise<void> {
         return new Promise<void>((resolve, reject) => this.initializeTelemetry(attachArgs.cwd)
-            .then(() => {
-                this.initializeSettings(attachArgs);
-            })
+            .then(() => this.initializeSettings(attachArgs))
             .then(() => TelemetryHelper.generate("attach", (generator) => {
                 attachArgs.port = attachArgs.port || 9222;
                 attachArgs.target = attachArgs.target || TargetType.Emulator;
@@ -430,6 +426,10 @@ export class CordovaDebugSession extends LoggingDebugSession {
             this.isSettingsInitialized = true;
             logger.setup(args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Log);
             this.cdpProxyLogLevel = args.trace ? LogLevel.Custom : LogLevel.None;
+
+            if (args.runtimeVersion) {
+                CordovaProjectHelper.nvmSupport(args);
+            }
         }
     }
 
@@ -1183,6 +1183,7 @@ To get the list of addresses run "ionic cordova run PLATFORM --livereload" (wher
             this.chromeProc = child_process.spawn(chromePath[0].path, chromeArgs, {
                 detached: true,
                 stdio: ["ignore"],
+                env: process.env
             });
             this.chromeProc.unref();
             this.chromeProc.on("error", (err) => {
