@@ -393,6 +393,12 @@ gulp.task("clean-test", function () {
   var pathsToDelete = [
     "test/**/*.js",
     "test/**/*.js.map",
+    "test/resources/testCordovaProject/.vscode",
+    "test/resources/testCordovaProject/node_modules",
+    "test/resources/testCordovaProject/plugins",
+    "test/resources/testCordovaProject/typings",
+    "test/resources/testCordovaProject/jsconfig.json",
+    "test/resources/testCordovaProject/package-lock.json",
     "!test/resources/testCordovaProject/**/*.js",
     "!test/resources/testCordovaProject/**/*.js.map",
   ];

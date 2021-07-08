@@ -3,7 +3,7 @@
 
 import * as assert from "assert";
 import * as path from "path";
-import * as Q from "q";
+import { delay } from "../src/utils/extensionHelper";
 import * as rimraf from "rimraf";
 import * as vscode from "vscode";
 import * as testUtils from "./testUtils";
@@ -36,7 +36,7 @@ suite("extensionContext", () => {
                 .then(() => {
                     return vscode.commands.executeCommand("cordova.build");
                 }).then(() => {
-                    return Q.delay(10000);
+                    return delay(10000);
                 }).then(_res => {
                     let androidBuildPath = path.resolve(testProjectPath, "platforms", "android", "app", "build");
                     assert.ok(CordovaProjectHelper.existsSync(androidBuildPath));
@@ -53,7 +53,7 @@ suite("extensionContext", () => {
                 .then((simHostStarted: boolean) => assert(simHostStarted, "The simulation host is running."))
                 .then(() => testUtils.isUrlReachable("http://localhost:8000/index.html"))
                 .then((appHostStarted: boolean) => assert(appHostStarted, "The application host is running."))
-                .fin(() => testUtils.removeCordovaComponents("platform", testProjectPath, ["android"]));
+                .finally(() => testUtils.removeCordovaComponents("platform", testProjectPath, ["android"]));
         });
     });
 });

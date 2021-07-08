@@ -11,7 +11,7 @@ try {
         : eval("require"); // tslint:disable-line:no-eval
 } catch {
     // Use a noop in case both `__non_webpack_require__` and `require` does not exist
-    customRequire = () => { }; // tslint:disable-line:no-empty
+    customRequire = () => {}; // eslint-disable-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-empty-function
 }
 
 export default customRequire;

@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
-import * as Q from "q";
 import * as path from "path";
 import * as CordovaSimulate from "cordova-simulate";
 import { CordovaSimulateTelemetry } from "../utils/cordovaSimulateTelemetry";
@@ -40,22 +39,22 @@ export class PluginSimulator implements vscode.Disposable {
     private simulatePackage: typeof CordovaSimulate;
     private packageInstallProc: cp.ChildProcess | null = null;
 
-    public simulate(fsPath: string, simulateOptions: CordovaSimulate.SimulateOptions, projectType: IProjectType): Q.Promise<any> {
+    public simulate(fsPath: string, simulateOptions: CordovaSimulate.SimulateOptions, projectType: IProjectType): Promise<any> {
         return this.launchServer(fsPath, simulateOptions, projectType)
             .then(() => this.launchSimHost(simulateOptions.target))
             .then(() => this.launchAppHost(simulateOptions.target));
     }
 
-    public launchAppHost(target: string): Q.Promise<void> {
+    public launchAppHost(target: string): Promise<void> {
         return this.getPackage()
             .then(simulate => {
                 return simulate.launchBrowser(target, this.simulationInfo.appHostUrl);
             });
     }
 
-    public launchSimHost(target: string): Q.Promise<void> {
+    public launchSimHost(target: string): Promise<void> {
         if (!this.simulator) {
-            return Q.reject<void>(new Error(localize("LaunchingSimHostBeforeStartSimulationServer", "Launching sim host before starting simulation server")));
+            return Promise.reject<void>(new Error(localize("LaunchingSimHostBeforeStartSimulationServer", "Launching sim host before starting simulation server")));
         }
         return this.getPackage()
             .then(simulate => {
@@ -63,7 +62,7 @@ export class PluginSimulator implements vscode.Disposable {
             });
     }
 
-    public launchServer(fsPath: string, simulateOptions: CordovaSimulate.SimulateOptions, projectType: IProjectType): Q.Promise<SimulationInfo> {
+    public launchServer(fsPath: string, simulateOptions: CordovaSimulate.SimulateOptions, projectType: IProjectType): Promise<SimulationInfo> {
         const uri = vscode.Uri.file(fsPath);
         const workspaceFolder = <vscode.WorkspaceFolder>vscode.workspace.getWorkspaceFolder(uri);
         simulateOptions.dir = workspaceFolder.uri.fsPath;
@@ -124,20 +123,20 @@ export class PluginSimulator implements vscode.Disposable {
         }
 
         if (this.simulator) {
-            this.simulator.stopSimulation().done(() => { }, () => { });
+            this.simulator.stopSimulation().then(() => { }, () => { });
             this.simulator = null;
         }
     }
 
-    public getPackage(): Q.Promise<typeof CordovaSimulate> {
+    public getPackage(): Promise<typeof CordovaSimulate> {
         if (this.simulatePackage) {
-            return Q.resolve(this.simulatePackage);
+            return Promise.resolve(this.simulatePackage);
         }
         // Don't do the require if we don't actually need it
         try {
             const simulate = customRequire(this.CORDOVA_SIMULATE_PACKAGE) as typeof CordovaSimulate;
             this.simulatePackage = simulate;
-            return Q.resolve(this.simulatePackage);
+            return Promise.resolve(this.simulatePackage);
         } catch (e) {
             if (e.code === "MODULE_NOT_FOUND") {
                 OutputChannelLogger.getMainChannel().log(localize("CordovaSimulateDepNotPresent", "cordova-simulate dependency not present. Installing it..."));
@@ -146,47 +145,47 @@ export class PluginSimulator implements vscode.Disposable {
             }
         }
 
-        const packageFound = Q.defer<typeof CordovaSimulate>();
-        if (!this.packageInstallProc) {
-            this.packageInstallProc = cp.spawn(process.platform === "win32" ? "npm.cmd" : "npm",
-                ["install", this.CORDOVA_SIMULATE_PACKAGE, "--verbose", "--no-save"],
-                { cwd: path.dirname(findFileInFolderHierarchy(__dirname, "package.json")) });
+        return new Promise((resolve, reject) => {
+            if (!this.packageInstallProc) {
+                this.packageInstallProc = cp.spawn(process.platform === "win32" ? "npm.cmd" : "npm",
+                    ["install", this.CORDOVA_SIMULATE_PACKAGE, "--verbose", "--no-save"],
+                    { cwd: path.dirname(findFileInFolderHierarchy(__dirname, "package.json")) });
 
-            this.packageInstallProc.once("exit", (code: number) => {
-                if (code === 0) {
-                    this.simulatePackage = customRequire(this.CORDOVA_SIMULATE_PACKAGE);
-                    packageFound.resolve(this.simulatePackage);
-                } else {
-                    OutputChannelLogger.getMainChannel().log(localize("ErrorWhileInstallingCordovaSimulateDep", "Error while installing cordova-simulate dependency to the extension"));
-                    packageFound.reject(localize("ErrorWhileInstallingCordovaSimulateDep", "Error while installing cordova-simulate dependency to the extension"));
-                }
-            });
+                this.packageInstallProc.once("exit", (code: number) => {
+                    if (code === 0) {
+                        this.simulatePackage = customRequire(this.CORDOVA_SIMULATE_PACKAGE);
+                        resolve(this.simulatePackage);
+                    } else {
+                        OutputChannelLogger.getMainChannel().log(localize("ErrorWhileInstallingCordovaSimulateDep", "Error while installing cordova-simulate dependency to the extension"));
+                        reject(localize("ErrorWhileInstallingCordovaSimulateDep", "Error while installing cordova-simulate dependency to the extension"));
+                    }
+                });
 
-            let lastDotTime = 0;
-            const printDot = () => {
-                const now = Date.now();
-                if (now - lastDotTime > 1500) {
-                    lastDotTime = now;
-                    OutputChannelLogger.getMainChannel().append(".");
-                }
-            };
+                let lastDotTime = 0;
+                const printDot = () => {
+                    const now = Date.now();
+                    if (now - lastDotTime > 1500) {
+                        lastDotTime = now;
+                        OutputChannelLogger.getMainChannel().append(".");
+                    }
+                };
 
-            this.packageInstallProc.stdout.on("data", () => {
-                printDot();
-            });
+                this.packageInstallProc.stdout.on("data", () => {
+                    printDot();
+                });
 
-            this.packageInstallProc.stderr.on("data", (data: Buffer) => {
-                printDot();
-            });
-        } else {
-            const packageCheck = setInterval(() => {
-                if (this.simulatePackage) {
-                    clearInterval(packageCheck);
-                    packageFound.resolve(this.simulatePackage);
-                }
-            }, 1000);
-        }
-        return packageFound.promise;
+                this.packageInstallProc.stderr.on("data", (data: Buffer) => {
+                    printDot();
+                });
+            } else {
+                const packageCheck = setInterval(() => {
+                    if (this.simulatePackage) {
+                        clearInterval(packageCheck);
+                        resolve(this.simulatePackage);
+                    }
+                }, 1000);
+            }
+        });
     }
 
     private isServerRunning(): boolean {

@@ -2,12 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
 /* tslint:disable:no-use-before-declare */
-import { CordovaProjectHelper, IPluginDetails } from "./cordovaProjectHelper";
+import { CordovaProjectHelper, IPluginDetails, IProjectType } from "./cordovaProjectHelper";
 import * as fs from "fs";
 import * as path from "path";
-import * as Q from "q";
 import { Telemetry } from "./telemetry";
-import { IProjectType } from "./cordovaProjectHelper";
 import * as nls from "vscode-nls";
 nls.config({ messageFormat: nls.MessageFormat.bundle, bundleFormat: nls.BundleFormat.standalone })();
 const localize = nls.loadMessageBundle();
@@ -81,12 +79,14 @@ export abstract class TelemetryGeneratorBase {
         return this;
     }
 
-    public time<T>(name: string, codeToMeasure: { (): Thenable<T> }): Q.Promise<T> {
+    public time<T>(name: string, codeToMeasure: { (): Promise<T> }): Promise<T> {
         let startTime: [number, number] = process.hrtime();
-        return Q(codeToMeasure()).finally(() => this.finishTime(name, startTime)).fail((reason: any): Q.Promise<T> => {
-            this.addError(reason);
-            throw reason;
-        });
+        return codeToMeasure()
+            .finally(() => this.finishTime(name, startTime))
+            .catch((reason: any) => {
+                this.addError(reason);
+                throw reason;
+            });
     }
 
     public step(name: string): TelemetryGeneratorBase {
@@ -163,32 +163,24 @@ export class TelemetryHelper {
         return new Telemetry.TelemetryActivity(eventName);
     }
 
-    public static determineProjectTypes(projectRoot: string): Q.Promise<IProjectType> {
-        let promiseExists = (file: string) => {
-            let deferred = Q.defer<boolean>();
-            fs.exists(file, (exist: boolean) => deferred.resolve(exist));
-            return deferred.promise;
-        };
-
+    public static determineProjectTypes(projectRoot: string): Promise<IProjectType> {
         let ionicVersions = CordovaProjectHelper.checkIonicVersions(projectRoot);
-        let meteor = promiseExists(path.join(projectRoot, ".meteor"));
-        let mobilefirst = promiseExists(path.join(projectRoot, ".project"));
-        let phonegap = promiseExists(path.join(projectRoot, "www", "res", ".pgbomit"));
-        let cordova = promiseExists(path.join(projectRoot, "config.xml"));
-        return Q.all([meteor, mobilefirst, phonegap, cordova])
-            .spread((isMeteor: boolean, isMobilefirst: boolean, isPhonegap: boolean, isCordova: boolean) => {
-                return {
-                    isIonic1: ionicVersions.isIonic1,
-                    isIonic2: ionicVersions.isIonic2,
-                    isIonic3: ionicVersions.isIonic3,
-                    isIonic4: ionicVersions.isIonic4,
-                    isIonic5: ionicVersions.isIonic5,
-                    isMeteor: isMeteor,
-                    isMobilefirst: isMobilefirst,
-                    isPhonegap: isPhonegap,
-                    isCordova: isCordova,
-                };
-            });
+        let meteor = CordovaProjectHelper.exists(path.join(projectRoot, ".meteor"));
+        let mobilefirst = CordovaProjectHelper.exists(path.join(projectRoot, ".project"));
+        let phonegap = CordovaProjectHelper.exists(path.join(projectRoot, "www", "res", ".pgbomit"));
+        let cordova = CordovaProjectHelper.exists(path.join(projectRoot, "config.xml"));
+        return Promise.all([meteor, mobilefirst, phonegap, cordova])
+            .then(([isMeteor, isMobilefirst, isPhonegap, isCordova]) => ({
+                isIonic1: ionicVersions.isIonic1,
+                isIonic2: ionicVersions.isIonic2,
+                isIonic3: ionicVersions.isIonic3,
+                isIonic4: ionicVersions.isIonic4,
+                isIonic5: ionicVersions.isIonic5,
+                isMeteor: isMeteor,
+                isMobilefirst: isMobilefirst,
+                isPhonegap: isPhonegap,
+                isCordova: isCordova,
+            }));
     }
 
     public static telemetryProperty(propertyValue: any, pii?: boolean): ITelemetryPropertyInfo {
@@ -213,7 +205,7 @@ export class TelemetryHelper {
         }
     }
 
-    public static generate<T>(name: string, codeGeneratingTelemetry: { (telemetry: TelemetryGenerator): Thenable<T> }): Q.Promise<T> {
+    public static generate<T>(name: string, codeGeneratingTelemetry: { (telemetry: TelemetryGenerator): Promise<T> }): Promise<T> {
         let generator: TelemetryGenerator = new TelemetryGenerator(name);
         return generator.time(null, () => codeGeneratingTelemetry(generator)).finally(() => generator.send());
     }
@@ -264,7 +256,7 @@ export class TelemetryHelper {
         // Write out new list of previousPlugins
         pluginFileJson.plugins = pluginsFileList;
         try {
-            fs.writeFileSync(pluginFilePath, JSON.stringify(pluginFileJson), "utf8");
+            fs.writeFileSync(pluginFilePath, JSON.stringify(pluginFileJson));
         } catch (err) {
             throw new Error(err.message + localize("CWDDoesntReferToTheWorkspaceRootDirectory", " It seems that 'cwd' parameter doesn't refer to the workspace root directory. Please make sure that 'cwd' contains the path to the workspace root directory."));
         }

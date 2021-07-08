@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
 import * as child_process from "child_process";
-import * as Q from "q";
 import * as os from "os";
 import { window, WorkspaceConfiguration, workspace, Uri, commands } from "vscode";
 import { CordovaSessionManager } from "../extension/cordovaSessionManager";
@@ -24,7 +23,7 @@ export class CordovaCommandHelper {
     private static IONIC_DISPLAY_NAME: string = "Ionic";
     private static readonly RESTART_SESSION_COMMAND: string = "workbench.action.debug.restart";
 
-    public static executeCordovaCommand(projectRoot: string, command: string, useIonic: boolean = false) {
+    public static executeCordovaCommand(projectRoot: string, command: string, useIonic: boolean = false): Promise<void> {
         let telemetryEventName: string = CordovaCommandHelper.CORDOVA_TELEMETRY_EVENT_NAME;
         let cliCommandName: string = CordovaCommandHelper.CORDOVA_CMD_NAME;
         let cliDisplayName: string = CordovaCommandHelper.CORDOVA_DISPLAY_NAME;
@@ -66,38 +65,40 @@ export class CordovaCommandHelper {
                         env: CordovaCommandHelper.getEnvArgs(projectRoot),
                         envFile: CordovaCommandHelper.getEnvFile(projectRoot),
                     });
-                    let process = child_process.exec(commandToExecute, { cwd: projectRoot, env });
 
-                    let deferred = Q.defer();
-                    process.on("error", (err: any) => {
-                        // ENOENT error will be thrown if no Cordova.cmd or ionic.cmd is found
-                        if (err.code === "ENOENT") {
-                            window.showErrorMessage(localize("PackageNotFoundPleaseInstall", "{0} not found, please run \"npm install –g {1}\" to install {2} globally", cliDisplayName, cliDisplayName.toLowerCase(), cliDisplayName));
-                        }
-                        deferred.reject(err);
-                    });
+                    const execution = new Promise((resolve, reject) => {
+                        const process = child_process.exec(commandToExecute, { cwd: projectRoot, env });
 
-                    process.stderr.on("data", (data: any) => {
-                        logger.append(data);
-                    });
+                        process.on("error", (err: any) => {
+                            // ENOENT error will be thrown if no Cordova.cmd or ionic.cmd is found
+                            if (err.code === "ENOENT") {
+                                window.showErrorMessage(localize("PackageNotFoundPleaseInstall", "{0} not found, please run \"npm install –g {1}\" to install {2} globally", cliDisplayName, cliDisplayName.toLowerCase(), cliDisplayName));
+                            }
+                            reject(err);
+                        });
 
-                    process.stdout.on("data", (data: any) => {
-                        logger.append(data);
-                    });
+                        process.stderr.on("data", (data: any) => {
+                            logger.append(data);
+                        });
 
-                    process.stdout.on("close", () => {
-                        logger.log(localize("FinishedExecuting", "########### FINISHED EXECUTING: {0} ###########", commandToExecute));
-                        deferred.resolve({});
+                        process.stdout.on("data", (data: any) => {
+                            logger.append(data);
+                        });
+
+                        process.stdout.on("close", () => {
+                            logger.log(localize("FinishedExecuting", "########### FINISHED EXECUTING: {0} ###########", commandToExecute));
+                            resolve({});
+                        });
                     });
 
                     return TelemetryHelper.determineProjectTypes(projectRoot)
                         .then((projectType) => generator.add("projectType", projectType, false))
-                        .then(() => deferred.promise);
+                        .then(() => execution);
                 });
             });
     }
 
-    public static restartCordovaDebugging(projectRoot: string, cordovaSessionManager: CordovaSessionManager) {
+    public static restartCordovaDebugging(projectRoot: string, cordovaSessionManager: CordovaSessionManager): void {
         const cordovaDebugSession = cordovaSessionManager.getCordovaDebugSessionByProjectRoot(projectRoot);
         if (cordovaDebugSession) {
             switch (cordovaDebugSession.getStatus()) {
@@ -145,40 +146,39 @@ export class CordovaCommandHelper {
         }
     }
 
-    private static selectPlatform(projectRoot: string, command: string, useIonic: boolean): Q.Promise<string> {
+    private static selectPlatform(projectRoot: string, command: string, useIonic: boolean): Promise<string> {
         let platforms = CordovaProjectHelper.getInstalledPlatforms(projectRoot);
         platforms = CordovaCommandHelper.filterAvailablePlatforms(platforms);
 
-        return Q({})
-            .then(() => {
-                if (["prepare", "build", "run"].indexOf(command) > -1) {
-                    if (platforms.length > 1) {
-                        platforms.unshift("all");
-                        // Ionic doesn't support prepare and run command without platform
-                        if (useIonic && (command === "prepare" || command === "run")) {
-                            platforms.shift();
-                        }
-                        return window.showQuickPick(platforms)
-                            .then((platform) => {
-                                if (!platform) {
-                                    throw new Error(localize("PlatformSelectionWasCancelled", "Platform selection was canceled. Please select target platform to continue!"));
-                                }
-
-                                if (platform === "all") {
-                                    return "";
-                                }
-
-                                return platform;
-                            });
-                    } else if (platforms.length === 1) {
-                        return platforms[0];
-                    } else {
-                        throw new Error(localize("NoAnyPlatformInstalled", "No any platforms installed"));
+        return new Promise((resolve, reject) => {
+            if (["prepare", "build", "run"].indexOf(command) > -1) {
+                if (platforms.length > 1) {
+                    platforms.unshift("all");
+                    // Ionic doesn't support prepare and run command without platform
+                    if (useIonic && (command === "prepare" || command === "run")) {
+                        platforms.shift();
                     }
-                }
+                    return window.showQuickPick(platforms)
+                        .then((platform) => {
+                            if (!platform) {
+                                throw new Error(localize("PlatformSelectionWasCancelled", "Platform selection was canceled. Please select target platform to continue!"));
+                            }
 
-                return "";
-            });
+                            if (platform === "all") {
+                                return resolve("");
+                            }
+
+                            return resolve(platform);
+                        });
+                } else if (platforms.length === 1) {
+                    return resolve(platforms[0]);
+                } else {
+                    throw new Error(localize("NoAnyPlatformInstalled", "No any platforms installed"));
+                }
+            }
+
+            return resolve("");
+        });
     }
 
     private static filterAvailablePlatforms(platforms: string[]): string[] {

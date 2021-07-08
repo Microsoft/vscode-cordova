@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
-import {Telemetry} from "./telemetry";
-import {TelemetryGenerator, TelemetryHelper} from "./telemetryHelper";
+import { Telemetry } from "./telemetry";
+import { TelemetryGenerator, TelemetryHelper } from "./telemetryHelper";
 
 /**
  * This class is a telemetry wrapper compatible with cordova-simulate's telemetry. Cordova-simulate expects an object with a sendTelemetry() function, and calls it every time there is a

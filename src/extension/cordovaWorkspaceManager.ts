@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
-import * as Q from "q";
 import { PluginSimulator } from "./simulate";
 import { SimulationInfo } from "../common/simulationInfo";
 import { SimulateOptions } from "cordova-simulate";
@@ -54,7 +53,7 @@ export class CordovaWorkspaceManager implements vscode.Disposable {
      *
      * Returns info about the running simulate server
      */
-    public simulate(fsPath: string, simulateOptions: SimulateOptions, projectType: IProjectType): Q.Promise<SimulationInfo> {
+    public simulate(fsPath: string, simulateOptions: SimulateOptions, projectType: IProjectType): Promise<SimulationInfo> {
         return this.launchSimulateServer(fsPath, simulateOptions, projectType)
             .then((simulateInfo: SimulationInfo) => {
                 return this.launchSimHost(simulateOptions.target).then(() => simulateInfo);
@@ -66,31 +65,30 @@ export class CordovaWorkspaceManager implements vscode.Disposable {
      *
      * Returns info about the running simulate server
      */
-    public launchSimulateServer(fsPath: string, simulateOptions: SimulateOptions, projectType: IProjectType): Q.Promise<SimulationInfo> {
+    public launchSimulateServer(fsPath: string, simulateOptions: SimulateOptions, projectType: IProjectType): Promise<SimulationInfo> {
         return this.pluginSimulator.launchServer(fsPath, simulateOptions, projectType);
     }
 
     /**
      * Launches sim-host using an already running simulate server.
      */
-    public launchSimHost(target: string): Q.Promise<void> {
+    public launchSimHost(target: string): Promise<void> {
         return this.pluginSimulator.launchSimHost(target);
     }
 
     /**
      * Returns the number of currently visible editors.
      */
-    public getVisibleEditorsCount(): Q.Promise<number> {
+    public getVisibleEditorsCount(): Promise<number> {
         // visibleTextEditors is null proof (returns empty array if no editors visible)
-        return Q.resolve(vscode.window.visibleTextEditors.length);
+        return Promise.resolve(vscode.window.visibleTextEditors.length);
     }
 
-    public getRunArguments(fsPath: string): Q.Promise<string[]> {
-        return Q.resolve(CordovaCommandHelper.getRunArguments(fsPath));
+    public getRunArguments(fsPath: string): Promise<string[]> {
+        return Promise.resolve(CordovaCommandHelper.getRunArguments(fsPath));
     }
 
-
-    public getCordovaExecutable(fsPath: string): Q.Promise<string> {
-        return Q.resolve(CordovaCommandHelper.getCordovaExecutable(fsPath));
+    public getCordovaExecutable(fsPath: string): Promise<string> {
+        return Promise.resolve(CordovaCommandHelper.getCordovaExecutable(fsPath));
     }
 }

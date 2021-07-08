@@ -7,13 +7,12 @@ import * as child_process from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as pl from "plist";
-import * as Q from "q";
 import * as xcode from "xcode";
+import { delay } from "../utils/extensionHelper";
+import { ChildProcess } from "../common/node/childProcess";
 import * as nls from "vscode-nls";
 nls.config({ messageFormat: nls.MessageFormat.bundle, bundleFormat: nls.BundleFormat.standalone })();
 const localize = nls.loadMessageBundle();
-
-let promiseExec = Q.denodeify(child_process.exec);
 
 export class CordovaIosDeviceLauncher {
     private static nativeDebuggerProxyInstance: child_process.ChildProcess;
@@ -30,8 +29,8 @@ export class CordovaIosDeviceLauncher {
         }
     }
 
-    public static getBundleIdentifier(projectRoot: string): Q.Promise<string> {
-        return Q.nfcall(fs.readdir, path.join(projectRoot, "platforms", "ios")).then((files: string[]) => {
+    public static getBundleIdentifier(projectRoot: string): Promise<string> {
+        return fs.promises.readdir(path.join(projectRoot, "platforms", "ios")).then((files: string[]) => {
             let xcodeprojfiles = files.filter((file: string) => /\.xcodeproj$/.test(file));
             if (xcodeprojfiles.length === 0) {
                 throw new Error(localize("UnableToFindXCodeProjFile", "Unable to find xcodeproj file"));
@@ -49,51 +48,50 @@ export class CordovaIosDeviceLauncher {
         });
     }
 
-    public static startDebugProxy(proxyPort: number): Q.Promise<child_process.ChildProcess> {
+    public static startDebugProxy(proxyPort: number): Promise<child_process.ChildProcess> {
         if (CordovaIosDeviceLauncher.nativeDebuggerProxyInstance) {
             CordovaIosDeviceLauncher.nativeDebuggerProxyInstance.kill("SIGHUP"); // idevicedebugserver does not exit from SIGTERM
             CordovaIosDeviceLauncher.nativeDebuggerProxyInstance = null;
         }
 
-        return CordovaIosDeviceLauncher.mountDeveloperImage().then(function (): Q.Promise<child_process.ChildProcess> {
-            let deferred = Q.defer<child_process.ChildProcess>();
-            CordovaIosDeviceLauncher.nativeDebuggerProxyInstance = child_process.spawn("idevicedebugserverproxy", [proxyPort.toString()]);
-            CordovaIosDeviceLauncher.nativeDebuggerProxyInstance.on("error", function (err: any): void {
-                deferred.reject(err);
+        return CordovaIosDeviceLauncher.mountDeveloperImage().then(() => {
+            return new Promise((resolve, reject) => {
+                CordovaIosDeviceLauncher.nativeDebuggerProxyInstance = child_process.spawn("idevicedebugserverproxy", [proxyPort.toString()]);
+                CordovaIosDeviceLauncher.nativeDebuggerProxyInstance.on("error", function (err: any): void {
+                    reject(err);
+                });
+                // Allow 200ms for the spawn to error out, ~125ms isn't uncommon for some failures
+                return delay(200).then(() => resolve(CordovaIosDeviceLauncher.nativeDebuggerProxyInstance));
             });
-            // Allow 200ms for the spawn to error out, ~125ms isn't uncommon for some failures
-            Q.delay(200).then(() => deferred.resolve(CordovaIosDeviceLauncher.nativeDebuggerProxyInstance));
-
-            return deferred.promise;
         });
     }
 
-    public static startWebkitDebugProxy(proxyPort: number, proxyRangeStart: number, proxyRangeEnd: number): Q.Promise<any> {
+    public static startWebkitDebugProxy(proxyPort: number, proxyRangeStart: number, proxyRangeEnd: number): Promise<void> {
         if (CordovaIosDeviceLauncher.webDebuggerProxyInstance) {
             CordovaIosDeviceLauncher.webDebuggerProxyInstance.kill();
             CordovaIosDeviceLauncher.webDebuggerProxyInstance = null;
         }
 
-        let deferred = Q.defer();
-        let portRange = `null:${proxyPort},:${proxyRangeStart}-${proxyRangeEnd}`;
-        CordovaIosDeviceLauncher.webDebuggerProxyInstance = child_process.spawn("ios_webkit_debug_proxy", ["-c", portRange]);
-        CordovaIosDeviceLauncher.webDebuggerProxyInstance.on("error", function () {
-            deferred.reject(new Error(localize("UnableToStartIosWebkitDebugProxy", "Unable to start ios_webkit_debug_proxy.")));
+        return new Promise((resolve, reject) => {
+            let portRange = `null:${proxyPort},:${proxyRangeStart}-${proxyRangeEnd}`;
+            CordovaIosDeviceLauncher.webDebuggerProxyInstance = child_process.spawn("ios_webkit_debug_proxy", ["-c", portRange]);
+            CordovaIosDeviceLauncher.webDebuggerProxyInstance.on("error", function () {
+                reject(new Error(localize("UnableToStartIosWebkitDebugProxy", "Unable to start ios_webkit_debug_proxy.")));
+            });
+            // Allow some time for the spawned process to error out
+            return delay(250).then(() => resolve(void 0));
         });
-        // Allow some time for the spawned process to error out
-        Q.delay(250).then(() => deferred.resolve({}));
-
-        return deferred.promise;
     }
 
-    public static getPathOnDevice(packageId: string): Q.Promise<string> {
-        return promiseExec("ideviceinstaller -l -o xml > /tmp/$$.ideviceinstaller && echo /tmp/$$.ideviceinstaller")
+    public static getPathOnDevice(packageId: string): Promise<string> {
+        const cp = new ChildProcess();
+        return cp.execToString("ideviceinstaller -l -o xml > /tmp/$$.ideviceinstaller && echo /tmp/$$.ideviceinstaller")
             .catch(function (err: any): any {
                 if (err.code === "ENOENT") {
                     throw new Error(localize("UnableToStartiDeviceInstaller", "Unable to find ideviceinstaller."));
                 }
                 throw err;
-            }).spread<string>(function (stdout: string): string {
+            }).then((stdout: string) => {
                 // First find the path of the app on the device
                 let filename: string = stdout.trim();
                 if (!/^\/tmp\/[0-9]+\.ideviceinstaller$/.test(filename)) {
@@ -118,7 +116,7 @@ export class CordovaIosDeviceLauncher {
         return packagePath.split("").map((c: string) => c.charCodeAt(0).toString(16)).join("").toUpperCase();
     }
 
-    private static getBundleIdentifierFromPbxproj(xcodeprojFilePath: string): Q.Promise<string> {
+    private static getBundleIdentifierFromPbxproj(xcodeprojFilePath: string): Promise<string> {
         const pbxprojFilePath = path.join(xcodeprojFilePath, "project.pbxproj");
         const pbxproj = xcode.project(pbxprojFilePath).parseSync();
         const target = pbxproj.getFirstTarget();
@@ -128,73 +126,73 @@ export class CordovaIosDeviceLauncher {
         const targetConfigUUID = targetConfigs[0].value; // 0 is "Debug, 1 is Release" - usually they have the same associated bundleId, it's highly unlikely someone would change it
         const allConfigs = pbxproj.pbxXCBuildConfigurationSection();
         const bundleId = allConfigs[targetConfigUUID].buildSettings.PRODUCT_BUNDLE_IDENTIFIER;
-        return Q.resolve(bundleId);
+        return Promise.resolve(bundleId);
     }
-    private static mountDeveloperImage(): Q.Promise<any> {
-        return CordovaIosDeviceLauncher.getDiskImage()
-            .then(function (path: string): Q.Promise<any> {
-                let imagemounter: child_process.ChildProcess = child_process.spawn("ideviceimagemounter", [path, path + ".signature"]);
-                let deferred: Q.Deferred<any> = Q.defer();
-                let stdout: string = "";
-                imagemounter.stdout.on("data", function (data: any): void {
-                    stdout += data.toString();
-                });
-                imagemounter.on("close", function (code: number): void {
-                    if (code !== 0) {
-                        if (stdout.indexOf("Error:") !== -1) {
-                            deferred.resolve({}); // Technically failed, but likely caused by the image already being mounted.
-                        } else if (stdout.indexOf("No device found, is it plugged in?") !== -1) {
-                            deferred.reject(localize("UnableToFindDevice", "Unable to find device. Is the device plugged in?"));
-                        }
 
-                        deferred.reject(localize("UnableToMountDeveloperDiskImage", "Unable to mount developer disk image."));
-                    } else {
-                        deferred.resolve({});
-                    }
+    private static mountDeveloperImage(): Promise<void> {
+        return CordovaIosDeviceLauncher.getDiskImage()
+            .then((path: string) => {
+                let imagemounter: child_process.ChildProcess = child_process.spawn("ideviceimagemounter", [path, path + ".signature"]);
+                return new Promise((resolve, reject) => {
+                    let stdout: string = "";
+                    imagemounter.stdout.on("data", function (data: any): void {
+                        stdout += data.toString();
+                    });
+                    imagemounter.on("close", function (code: number): void {
+                        if (code !== 0) {
+                            if (stdout.indexOf("Error:") !== -1) {
+                                resolve(); // Technically failed, but likely caused by the image already being mounted.
+                            } else if (stdout.indexOf("No device found, is it plugged in?") !== -1) {
+                                reject(localize("UnableToFindDevice", "Unable to find device. Is the device plugged in?"));
+                            }
+
+                            reject(localize("UnableToMountDeveloperDiskImage", "Unable to mount developer disk image."));
+                        } else {
+                            resolve();
+                        }
+                    });
+                    imagemounter.on("error", function (err: any): void {
+                        reject(err);
+                    });
                 });
-                imagemounter.on("error", function (err: any): void {
-                    deferred.reject(err);
-                });
-                return deferred.promise;
             });
     }
 
-    private static getDiskImage(): Q.Promise<string> {
+    private static getDiskImage(): Promise<string> {
+        const cp = new ChildProcess();
         // Attempt to find the OS version of the iDevice, e.g. 7.1
-        let versionInfo: Q.Promise<any> = promiseExec("ideviceinfo -s -k ProductVersion")
-            .spread<string>(function (stdout: string): string {
+        let versionInfo: Promise<string> = cp.execToString("ideviceinfo -s -k ProductVersion")
+            .then(stdout => {
                 // Versions for DeveloperDiskImage seem to be X.Y, while some device versions are X.Y.Z
                 return /^(\d+\.\d+)(?:\.\d+)?$/gm.exec(stdout.trim())[1];
             })
-            .catch(function (e): string {
-                throw new Error(localize("UnableToGetDeviceOSVersion", "Unable to get device OS version. Details: {0}", e.message));
+            .catch(err => {
+                throw new Error(localize("UnableToGetDeviceOSVersion", "Unable to get device OS version. Details: {0}", err.message));
             });
 
         // Attempt to find the path where developer resources exist.
-        let pathInfo: Q.Promise<any> = promiseExec("xcrun -sdk iphoneos --show-sdk-platform-path").spread<string>(function (stdout: string): string {
+        let pathInfo: Promise<string> = cp.execToString("xcrun -sdk iphoneos --show-sdk-platform-path").then(stdout => {
             let sdkpath: string = stdout.trim();
             return sdkpath;
         });
 
         // Attempt to find the developer disk image for the appropriate
-        return Q.all([versionInfo, pathInfo]).spread<string>(function (version: string, sdkpath: string): Q.Promise<string> {
+        return Promise.all([versionInfo, pathInfo]).then(([version, sdkpath]) => {
             let find: child_process.ChildProcess = child_process.spawn("find", [sdkpath, "-path", "*" + version + "*", "-name", "DeveloperDiskImage.dmg"]);
-            let deferred: Q.Deferred<string> = Q.defer<string>();
-
-            find.stdout.on("data", function (data: any): void {
-                let dataStr: string = data.toString();
-                let path: string = dataStr.split("\n")[0].trim();
-                if (!path) {
-                    deferred.reject(localize("UnableToFindDeveloperDiskImage", "Unable to find developer disk image."));
-                } else {
-                    deferred.resolve(path);
-                }
+            return new Promise<string>((resolve, reject) => {
+                find.stdout.on("data", function (data: any): void {
+                    let dataStr: string = data.toString();
+                    let path: string = dataStr.split("\n")[0].trim();
+                    if (!path) {
+                        reject(localize("UnableToFindDeveloperDiskImage", "Unable to find developer disk image."));
+                    } else {
+                        resolve(path);
+                    }
+                });
+                find.on("close", function (): void {
+                    reject(localize("UnableToFindDeveloperDiskImage", "Unable to find developer disk image."));
+                });
             });
-            find.on("close", function (): void {
-                deferred.reject(localize("UnableToFindDeveloperDiskImage", "Unable to find developer disk image."));
-            });
-
-            return deferred.promise;
         });
     }
 }

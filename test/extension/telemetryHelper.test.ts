@@ -6,6 +6,7 @@ import * as path from "path";
 import * as fs from "fs";
 import * as sinon from "sinon";
 import { TelemetryHelper } from "../../src/utils/telemetryHelper";
+import { CordovaProjectHelper } from "../../src/utils/cordovaProjectHelper";
 
 suite("telemetryHelper", function () {
     const testProjectPath = path.join(__dirname, "..", "resources", "testCordovaProject");
@@ -34,12 +35,12 @@ suite("telemetryHelper", function () {
 
         suite("not Ionic projects", function () {
             teardown(() => {
-                (fs.exists as any).restore();
+                (CordovaProjectHelper.exists as any).restore();
             });
 
             test("should detect Cordova and Meteor project", () => {
-                sinon.stub(fs, "exists").callsFake((path: fs.PathLike, callback: (exists: boolean) => void) => {
-                    return callback(path.toString().includes(".meteor") || path.toString().includes("config.xml"));
+                sinon.stub(CordovaProjectHelper, "exists").callsFake((filename: string): Promise<boolean> => {
+                    return Promise.resolve(filename.toString().includes(".meteor") || filename.toString().includes("config.xml"));
                 });
 
                 return TelemetryHelper.determineProjectTypes(testProjectPath)

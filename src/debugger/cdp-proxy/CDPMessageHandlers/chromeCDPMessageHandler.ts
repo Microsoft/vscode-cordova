@@ -63,7 +63,7 @@ export class ChromeCDPMessageHandler extends CDPMessageHandlerBase {
         };
     }
 
-    public configureHandlerAccordingToProcessedAttachArgs(args: ICordovaAttachRequestArgs) { }
+    public configureHandlerAccordingToProcessedAttachArgs(args: ICordovaAttachRequestArgs): void { }
 
     private fixSourcemapLocation(reqParams: any): any {
         let absoluteSourcePath = this.sourcemapPathTransformer.getClientPathFromHttpBasedUrl(reqParams.url);

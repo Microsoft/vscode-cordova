@@ -103,11 +103,11 @@ export class CordovaCDPProxy {
         this.applicationTargetPort = applicationTargetPort;
     }
 
-    public setBrowserInspectUri(browserInspectUri: string) {
+    public setBrowserInspectUri(browserInspectUri: string): void {
         this.browserInspectUri = browserInspectUri;
     }
 
-    public configureCDPMessageHandlerAccordingToProcessedAttachArgs(args: ICordovaAttachRequestArgs) {
+    public configureCDPMessageHandlerAccordingToProcessedAttachArgs(args: ICordovaAttachRequestArgs): void {
         if (
             args.iOSVersion
             && !this.communicationPreparationsDone

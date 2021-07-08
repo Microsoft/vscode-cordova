@@ -7,7 +7,6 @@ import { SimulateOptions } from "cordova-simulate";
 import * as vscode from "vscode";
 import { CordovaProjectHelper } from "./utils/cordovaProjectHelper";
 import { CordovaCommandHelper } from "./utils/cordovaCommandHelper";
-import * as Q from "q";
 import * as semver from "semver";
 import { Telemetry } from "./utils/telemetry";
 import { TelemetryHelper } from "./utils/telemetryHelper";
@@ -116,8 +115,7 @@ export function onFolderAdded(folder: vscode.WorkspaceFolder): void {
         })
         .finally(() => {
             Telemetry.send(cordovaProjectTypeEvent);
-        })
-        .done();
+        });
 
     // We need to update the type definitions added to the project
     // as and when plugins are added or removed. For this reason,
@@ -201,9 +199,9 @@ export function onFolderAdded(folder: vscode.WorkspaceFolder): void {
     let jsconfigPath: string = path.join(workspaceRoot, JSCONFIG_FILENAME);
     let tsconfigPath: string = path.join(workspaceRoot, TSCONFIG_FILENAME);
 
-    Q.all([Q.nfcall(fs.exists, jsconfigPath), Q.nfcall(fs.exists, tsconfigPath)]).spread((jsExists: boolean, tsExists: boolean) => {
+    Promise.all([CordovaProjectHelper.exists(jsconfigPath), CordovaProjectHelper.exists(tsconfigPath)]).then(([jsExists, tsExists]) => {
         if (!jsExists && !tsExists) {
-            Q.nfcall(fs.writeFile, jsconfigPath, "{}").then(() => {
+            fs.promises.writeFile(jsconfigPath, "{}").then(() => {
                 // Any open file must be reloaded to enable intellisense on them, so inform the user
                 vscode.window.showInformationMessage("A 'jsconfig.json' file was created to enable IntelliSense. You may need to reload your open JS file(s).");
             });
@@ -349,7 +347,7 @@ function updatePluginTypeDefinitions(cordovaProjectRoot: string): void {
 }
 
 /* Launches a simulate command and records telemetry for it */
-function launchSimulateCommand(cordovaProjectRoot: string, options: SimulateOptions): Q.Promise<void> {
+function launchSimulateCommand(cordovaProjectRoot: string, options: SimulateOptions): Promise<void> {
     return TelemetryHelper.generate("simulateCommand", (generator) => {
         return TelemetryHelper.determineProjectTypes(cordovaProjectRoot)
             .then((projectType) => {
@@ -394,10 +392,10 @@ function registerCordovaCommands(cordovaSessionManager: CordovaSessionManager): 
     }));
 }
 
-function selectProject(): Q.Promise<CordovaWorkspaceManager> {
+function selectProject(): Promise<CordovaWorkspaceManager> {
     let keys = Object.keys(ProjectsStorage.projectsCache);
     if (keys.length > 1) {
-        return Q.Promise((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             vscode.window.showQuickPick(keys)
                 .then((selected) => {
                     if (selected) {
@@ -406,9 +404,9 @@ function selectProject(): Q.Promise<CordovaWorkspaceManager> {
                 }, reject);
         });
     } else if (keys.length === 1) {
-        return Q.resolve(ProjectsStorage.projectsCache[keys[0]]);
+        return Promise.resolve(ProjectsStorage.projectsCache[keys[0]]);
     } else {
-        return Q.reject(new Error(localize("NoCordovaProjectIsFound", "No Cordova project is found")));
+        return Promise.reject(new Error(localize("NoCordovaProjectIsFound", "No Cordova project is found")));
     }
 }
 

@@ -2,9 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
 declare module "cordova-simulate" {
-    import * as Q from "q";
 
-    function simulate(opts: simulate.SimulateOptions): Q.Promise<simulate.Simulator>;
+    function simulate(opts: simulate.SimulateOptions): Promise<simulate.Simulator>;
     module simulate {
         interface PropertyDictionary {
             [propName: string]: any;
@@ -36,8 +35,8 @@ declare module "cordova-simulate" {
 
         export class Simulator {
             constructor(opts: SimulateOptions);
-            startSimulation(): Q.Promise<void>;
-            stopSimulation(): Q.Promise<void>;
+            startSimulation(): Promise<void>;
+            stopSimulation(): Promise<void>;
 
             simHostUrl(): string;
             appUrl(): string;
@@ -45,7 +44,7 @@ declare module "cordova-simulate" {
             isRunning(): boolean;
         }
 
-        export function launchBrowser(target: string, url: string): Q.Promise<void>;
+        export function launchBrowser(target: string, url: string): Promise<void>;
         export var dirs: {
             common: string,
             "sim-host": string
